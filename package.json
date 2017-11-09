@@ -1,0 +1,42 @@
+{
+  "name": "msg-fabric-sink",
+  "version": "0.0.0",
+  "description": "Target sinks for msg-fabric",
+  "license": "BSD-2-Clause",
+  "author": "Shane Holloway <shane.holloway@ieee.org>",
+  "homepage": "https://github.com/shanewholloway/msg-fabric-sink#readme",
+  "bugs": {
+    "url": "https://github.com/shanewholloway/msg-fabric-sink/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+ssh://git@github.com/shanewholloway/msg-fabric-sink.git"
+  },
+  "keywords": [
+    "ecosystem:msg-fabric"
+  ],
+  "files": [
+    "dist/",
+    "code/",
+    "test/"
+  ],
+  "main": "dist/index",
+  "module": "dist/index.mjs",
+  "devDependencies": {
+    "babel-cli": "^6.26.0",
+    "babel-preset-jsy": "^0.9.2",
+    "msg-fabric-core": "shanewholloway/msg-fabric-core",
+    "rollup": "^0.50.0",
+    "rollup-plugin-babel": "^3.0.2"
+  },
+  "babel": {
+    "presets": "jsy/lean"
+  },
+  "scripts": {
+    "build": "rollup --config",
+    "watch": "npm -s run build -- --watch",
+    "demo": "babel-node test/demo.jsy",
+    "pretest": "npm -s run build",
+    "test": "true"
+  }
+}
