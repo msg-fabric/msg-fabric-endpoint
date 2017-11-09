@@ -1,0 +1,145 @@
+const little_endian = true
+const c_multipart = 'multipart'
+const c_streaming = 'streaming'
+
+
+function pack_routing(obj, dv, offset) ::
+  dv.setUint32 @ 0+offset, obj.id_router, little_endian
+  dv.setUint32 @ 4+offset, obj.id_target
+
+function unpack_routing(obj, dv, offset) ::
+  obj.id_router = dv.getUint32 @ 0+offset, little_endian
+  obj.id_target = dv.getUint32 @ 4+offset, little_endian
+
+
+export const basic_framings = @:
+  from_routing: @:
+    size: 8, bit: 0x1, mask: 0x1
+    test(obj) :: return null != obj.from_id
+
+    pack(obj, dv, offset) ::
+      pack_routing(obj.from_id, dv, offset)
+
+    unpack(obj, dv, offset) ::
+      if undefined === obj.from_id ::
+        obj.from_id = {}
+      unpack_routing(obj.from_id, dv, offset)
+
+  response: @:
+    size: 4, bit: 0x2, mask: 0x2
+    test(obj) :: return null != obj.token
+
+    pack(obj, dv, offset) ::
+      dv.setInt32 @ 0+offset, obj.token, little_endian
+
+    unpack(obj, dv, offset) ::
+      obj.token = dv.getInt32 @ 0+offset, little_endian
+
+  direct: @:
+    size: 0, bit: 0x0, mask: 0xc
+    pack(obj, dv, offset) ::
+    unpack(obj, dv, offset) ::
+
+  _future_: @:
+    size: 0, bit: 0x4, mask: 0xc
+    pack(obj, dv, offset) ::
+    unpack(obj, dv, offset) ::
+
+  multipart: @:
+    size: 6, bit: 0x8, mask: 0xc
+    transport: c_multipart
+    test(obj) ::
+      return c_multipart === obj.transport
+
+    pack(obj, dv, offset) ::
+      dv.setUint32 @ 0+offset, obj.msgid, little_endian
+      dv.setInt8   @ 4+offset, obj.seq || -1
+      dv.setUint8  @ 5+offset, obj.mp_flags || 0
+
+    unpack(obj, dv, offset) ::
+      obj.msgid     = dv.getUint32 @ 0+offset, little_endian
+      obj.seq       = dv.getInt8   @ 4+offset
+      obj.mp_flags  = dv.getUint8  @ 5+offset
+      obj.transport = c_multipart
+
+  streaming: @:
+    size: 8, bit: 0xc, mask: 0xc
+    transport: c_streaming
+    test(obj) ::
+      return c_streaming === obj.transport
+
+    pack(obj, dv, offset) ::
+      dv.setUint32 @ 0+offset, obj.msgid, little_endian
+      dv.setInt32  @ 4+offset, obj.seq || -1
+
+    unpack(obj, dv, offset) ::
+      obj.msgid = dv.getUint32 @ 0+offset, little_endian
+      obj.seq   = dv.getInt32  @ 4+offset, little_endian
+      obj.transport = c_streaming
+
+  trailer: @:
+    size: null, bit: 0, mask: 0
+    len(obj) ::
+      let trailer = obj.trailer
+      if null == trailer :: return this.size
+      trailer = Uint8Array.from(obj.trailer)
+      return this.size + trailer.byteLength
+    pack(obj, dv, offset) ::
+      let trailer = obj.trailer
+      if trailer ::
+        trailer = Uint8Array.from(obj.trailer)
+        if null === dv :: return trailer.byteLength
+        new Uint8Array(dv.buffer).set @ trailer, offset
+      return 0
+    unpack(obj, dv, offset) ::
+      obj.trailer = dv.buffer.slice(offset)
+
+
+
+export const framings = composeFramings()
+export default framings
+
+function composeFramings() ::
+  for const [name, f] of Object.entries(basic_framings) ::
+    f.name = name
+    if f.pack :: f.pack.size = f.size
+    if f.unpack :: f.unpack.size = f.size
+    if f.test :: f.test.bit = f.bit
+
+  const byBits = []
+  for let bits=0; bits <= 0xf; bits++ ::
+    const cfn = compose @ bits
+    byBits[bits] = cfn
+
+  const framingTests = Object.values(basic_framings).map(f=>f.test).filter(f=>f)
+  function testBits(obj) ::
+    let i = 0
+    for const test of framingTests ::
+      if test(obj) :: i |= test.bit
+    return i
+
+  byBits.testBits = testBits
+  byBits.choose = function (obj, lst) ::
+    const i = testBits(obj)
+    if null == lst :: lst = byBits
+    return lst[i]
+
+  return byBits
+
+  function compose(bits) ::
+    const parts = Object.values(basic_framings)
+      .filter @ f => f.bit === (bits & f.mask)
+
+    const pack = parts.map(f=>f.pack).reduce(fold)
+    const unpack = parts.map(f=>f.unpack).reduce(fold)
+    const {len} = parts.find(f=>f.len)
+    return @: bits, mask:0xf, size: pack.size, pack, unpack, len, parts
+
+  function fold(r, f) ::
+    fn.size = r.size + f.size
+    return fn
+
+    function fn(obj, dv, offset) ::
+      r(obj, dv, offset)
+      f(obj, dv, offset + 0|f.size)
+

@@ -1,0 +1,6 @@
+import {sink} from './sink.jsy'
+
+export default function (hub) ::
+  const [id] = window.crypto.getRandomValues(new Uint32Array(1))
+  return sink(hub, id)
+

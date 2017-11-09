@@ -1,0 +1,64 @@
+import protocol from './protocol.jsy'
+
+export function sink(hub, id_target) ::
+  //return new MsgSink().registerTarget(hub, id_target)
+
+
+export class Target ::
+  constructor(hub, id_target) ::
+    const channel = hub.connect_self()
+    channel.from_id = @{} id_router, id_target
+
+    Object.defineProperties @ this, @:
+      channel: @{} value: channel
+      packetParser: @{} value: hub.packetParser
+
+  /*
+  asSendType(msg_type, context) ::
+    const r_chan = this.channel.withContext(context, {type: msg_type})
+    return this.asSendBody(msg_type, r_chan)
+
+  asSendBody(msg_type, chan) ::
+    const entry = protocol[msg_type]
+    if 'function' === typeof entry.asSend ::
+      return entry.asSend(chan)
+    else if 'function' === typeof entry.pack ::
+      return body => entry.pack(chan, body)
+  */
+
+
+export class Sink ::
+  registerTarget(hub, id_target) ::
+    Object.defineProperties @ this, @:
+      packetParser: @{} value: hub.packetParser
+
+    hub.registerTarget @ id_target, this.dispatch
+    return this
+
+  dispatch = (msg, router) => ::
+    const key = `_on_msgtype_${msg.type.toString(16)}`
+    const entry = protocol[msg.type]
+    if undefined === entry ::
+      return this.dnu_msgtype(msg, router)
+
+    const ans = entry.recv @ msg, this, router
+    if ! ans :: return ans
+    this.emit(ans, msg)
+
+  dnu_msgtype(msg, router) ::
+    console.warn @ 'DNU msg_type:', msg.type
+
+  _createStateMap() :: return new Map()
+  byUniqId = this._createStateMap()
+  entryFor(uid, ifAbsent) ::
+    let entry = this.byUniqId.get(uid)
+    if undefined === entry ::
+      if 'function' === typeof ifAbsent ::
+        entry = ifAbsent(uid, this)
+      else entry = ifAbsent
+      this.byUniqId.set @ uid, entry
+    return entry
+
+  emit(ans, msg) ::
+    console.log @ "EMIT:", ans, msg
+

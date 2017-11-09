@@ -2,7 +2,7 @@ import rpi_babel from 'rollup-plugin-babel'
 
 const sourcemap = 'inline'
 
-const external = []
+const external = ['crypto']
 
 const plugins = [jsy_plugin()]
 

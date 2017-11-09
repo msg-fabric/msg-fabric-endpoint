@@ -1,0 +1,7 @@
+import {randomBytes} from 'crypto'
+import {sink} from './sink.jsy'
+
+export default function () ::
+  const id = randomBytes(4).readUInt32LE()
+  return sink(hub, id)
+

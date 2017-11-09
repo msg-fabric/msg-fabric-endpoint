@@ -1,0 +1,7 @@
+import framings from './framing.jsy'
+
+export const protocol = []
+export default protocol
+
+for const bits of framings ::
+  console.log @: bits
