@@ -1,0 +1,56 @@
+import framings from './framing.jsy'
+
+export default function binary_protocol(protocols, shared, packetParser) ::
+  const {concatBuffers, unpack_utf8} = packetParser
+  const {trailerAsJSON, createMultipart} = shared
+
+  const high = 0x10 // 0x1* — JSON header, binary body
+  const transports = @: direct, multipart, streaming
+
+  for const frame of framings ::
+    if null == frame :: continue
+    const impl = transports[frame.transport]
+    if !impl :: continue
+
+    const msg_type = high | frame.bits
+    const {send, recv} = impl(frame)
+
+    protocols.outbound[msg_type] = @:
+      msg_type
+      send(chan, obj) ::
+        chan.context.header = frame.create(obj, chan.context)
+        return send(chan, obj)
+
+    protocols.inbound[msg_type] = @:
+      msg_type
+      recv(msg, sink) ::
+        const dv = frame.load(msg, msg._raw_, trailerAsJSON)
+        return recv(msg, sink)
+
+  return protocols
+
+
+  function direct(frame) ::
+    return @:
+      send(chan, obj) ::
+        return chan.sendRaw @ chan.pack @ obj
+      recv(msg, sink) ::
+        msg.body = msg.body_buffer()
+        return msg
+
+  function multipart(frame) ::
+    return @:
+      send(chan, obj) ::
+        throw new Error @ 'TODO: split into packets…'
+      recv(msg, sink) ::
+        const feed = sink.entryFor @ msg.msgid, createMultipart
+        const buf = feed @ msg.seq, msg.body_buffer()
+        if undefined !== buf ::
+          msg.body = buf
+          return msg
+
+  function streaming(frame) ::
+    return @:
+      send() :: throw new Error @ 'TODO'
+      recv() :: throw new Error @ 'TODO'
+

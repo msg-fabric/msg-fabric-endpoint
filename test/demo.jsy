@@ -1,17 +1,8 @@
 import TestHub from './_test_hub.jsy'
-import what from '../dist'
-import {framings, basic_protocols} from '../dist'
-console.log @ framings.testBits @:
-  from_id: {}
-  transport: 'streaming'
 
-::
-  const protocols = []
-  basic_protocols.json @ protocols, @:
-  console.dir @ protocols, @: colors: true
+main().catch @ console.error
 
-::
-  const protocols = []
-  basic_protocols.binary @ protocols, @:
-  console.dir @ protocols, @: colors: true
+async function main() ::
+  const hub = new TestHub()
 
+  hub.endpoint @ (ep, msg_full, msg_part) => ::

@@ -1,0 +1,47 @@
+import init_protocol from './protocol/index.jsy'
+import EndpointBase from './endpoint.jsy'
+import SinkBase from './sink.jsy'
+
+export default function(plugin_options={}) ::
+  const {random_id_target} = plugin_options
+
+  return @: order: 1, subclass, post
+  
+  function subclass(MessageHub_PI, bases) ::
+    const {packetParser} = MessageHub_PI.prototype
+    if null==packetParser || ! packetParser.isPacketParser() ::
+      throw new TypeError @ `Invalid packetParser for plugin`
+    
+    MessageHub_PI.prototype.endpoint =
+      bindEndpointApi @ packetParser
+
+  function post(hub) ::
+    return hub.endpoint = hub.endpoint(hub)
+
+  function bindEndpointApi(packetParser) ::
+    const protocols = init_protocol @ packetParser
+    const Endpoint = EndpointBase.forProtocols(protocols)
+    const Sink = SinkBase.forProtocols(protocols)
+
+    return function(hub) ::
+      Object.assign @ endpoint, @:
+        create: endpoint
+        source
+      return endpoint
+
+      function source() ::
+        const ep = new Endpoint(null, hub)
+        return ep
+
+      function endpoint(on_message) ::
+        if 'function' !== typeof on_message ::
+          throw new TypeError @ `Expected 'on_message' function`
+
+        const id_target = random_id_target()
+        const ep = new Endpoint(id_target, hub)
+
+        const sink = new Sink()
+        hub.router.registerTarget @ id_target,
+          sink.bindDispatch(ep, on_message)
+        return ep
+

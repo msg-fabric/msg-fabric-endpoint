@@ -1,0 +1,57 @@
+import framings from './framing.jsy'
+
+export default function json_protocol(protocols, shared, packetParser) ::
+  const {concatBuffers, unpack_utf8} = packetParser
+  const {trailerAsJSON, createMultipart} = shared
+
+  const high = 0x00 // 0x0* — JSON header, JSON body; NDJSON streaming 
+  const transports = @: direct, multipart, streaming
+
+  for const frame of framings ::
+    if null == frame :: continue
+    const impl = transports[frame.transport]
+    if !impl :: continue
+
+    const msg_type = high | frame.bits
+    const {send, recv} = impl(frame)
+
+    protocols.outbound[msg_type] = @:
+      msg_type
+      send(chan, obj) ::
+        chan.context.header = frame.create(obj, chan.context)
+        return send(chan, obj)
+
+    protocols.inbound[msg_type] = @:
+      msg_type
+      recv(msg, sink) ::
+        const dv = frame.load(msg, msg._raw_, trailerAsJSON)
+        return recv(msg, sink)
+
+  return protocols
+
+
+  function direct(frame) ::
+    return @:
+      send(chan, obj) ::
+        chan.context.body = JSON.stringify(obj.body)
+        return chan.sendRaw @ chan.pack()
+      recv(msg, sink) ::
+        return msg
+
+  function multipart(frame) ::
+    return @:
+      send(chan, obj) ::
+        throw new Error @ 'TODO: split into packets…'
+      recv(msg, sink) ::
+        const feed = sink.entryFor @ msg.msgid, createMultipart
+        const buf = feed @ msg.seq, msg.body_buffer()
+        if undefined !== buf ::
+          let body = unpack_utf8 @ buf
+          body = JSON.parse @ body
+          msg.body = body
+          return msg
+
+  function streaming(frame) ::
+    return @:
+      send() :: throw new Error @ 'TODO'
+      recv() :: throw new Error @ 'TODO'

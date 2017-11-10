@@ -1,0 +1,12 @@
+export default class Endpoint ::
+  static forProtocols({outbound}) ::
+    class Endpoint extends this ::
+    Endpoint.prototype._protocol = outbound
+    return Endpoint
+
+  constructor(id_target, hub) ::
+    this.hub = hub
+    if null != id_target ::
+      this.from_id = @{}
+        id_router: hub.router.id_self
+        id_target

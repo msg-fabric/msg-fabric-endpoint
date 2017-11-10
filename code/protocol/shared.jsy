@@ -1,0 +1,23 @@
+
+export default function(packetParser) ::
+  const {concatBuffers, unpack_utf8} = packetParser
+
+  return @:
+    trailerAsJSON
+    createMultipart
+
+  function trailerAsJSON(msg) ::
+    const trailer = msg.unpack_utf8 @ msg.trailer
+    msg.trailer = JSON.parse @ trailer
+
+  function createMultipart(msgid, sink) ::
+    let parts = [], last = false
+
+    return function feed(seq, body_buf) ::
+      if seq < 0 :: last = true; seq = -seq
+      parts[seq-1] = body_buf
+
+      if ! parts.includes @ undefined ::
+        const res = concatBuffers(parts)
+        parts = null
+        return res
