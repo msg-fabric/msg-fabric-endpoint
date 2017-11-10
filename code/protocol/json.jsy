@@ -12,20 +12,20 @@ export default function json_protocol(protocols, shared, packetParser) ::
     const impl = transports[frame.transport]
     if !impl :: continue
 
-    const msg_type = high | frame.bits
+    const pkt_type = high | frame.bits
     const {send, recv} = impl(frame)
 
-    protocols.outbound[msg_type] = @:
-      msg_type
+    protocols.outbound[pkt_type] = @:
+      pkt_type
       send(chan, obj) ::
         chan.context.header = frame.create(obj, chan.context)
         return send(chan, obj)
 
-    protocols.inbound[msg_type] = @:
-      msg_type
-      recv(msg, sink) ::
-        const dv = frame.load(msg, msg._raw_, trailerAsJSON)
-        return recv(msg, sink)
+    protocols.inbound[pkt_type] = @:
+      pkt_type
+      recv(pkt, sink) ::
+        const dv = frame.load(pkt, pkt._raw_, trailerAsJSON)
+        return recv(pkt, sink)
 
   return protocols
 
@@ -35,21 +35,21 @@ export default function json_protocol(protocols, shared, packetParser) ::
       send(chan, obj) ::
         chan.context.body = JSON.stringify(obj.body)
         return chan.sendRaw @ chan.pack()
-      recv(msg, sink) ::
-        return msg
+      recv(pkt, sink) ::
+        return pkt
 
   function multipart(frame) ::
     return @:
       send(chan, obj) ::
         throw new Error @ 'TODO: split into packets…'
-      recv(msg, sink) ::
-        const feed = sink.entryFor @ msg.msgid, createMultipart
-        const buf = feed @ msg.seq, msg.body_buffer()
+      recv(pkt, sink) ::
+        const feed = sink.entryFor @ pkt.msgid, createMultipart
+        const buf = feed @ pkt.seq, pkt.body_buffer()
         if undefined !== buf ::
           let body = unpack_utf8 @ buf
           body = JSON.parse @ body
-          msg.body = body
-          return msg
+          pkt.body = body
+          return pkt
 
   function streaming(frame) ::
     return @:

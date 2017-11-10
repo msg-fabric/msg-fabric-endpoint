@@ -33,15 +33,20 @@ export default function(plugin_options={}) ::
         const ep = new Endpoint(null, hub)
         return ep
 
-      function endpoint(on_message) ::
+      function endpoint(on_message, on_error) ::
         if 'function' !== typeof on_message ::
           throw new TypeError @ `Expected 'on_message' function`
+        if 'function' !== typeof on_error ::
+          throw new TypeError @ `Expected 'on_error' function`
 
         const id_target = random_id_target()
         const ep = new Endpoint(id_target, hub)
 
         const sink = new Sink()
         hub.router.registerTarget @ id_target,
-          sink.bindDispatch(ep, on_message)
-        return ep
+          sink.bindDispatch(ep, on_error, on_error)
+
+        return Promise.resolve(ep)
+          .then(on_message)
+          .catch(on_error)
 

@@ -4,16 +4,20 @@ export default class Sink ::
     Sink.prototype._protocol = inbound
     return Sink
 
-  bindDispatch(endpoint, on_message) ::
+  bindDispatch(endpoint, on_message, on_error) ::
     const protocol = this._protocol
-    return async msg_part => ::
-      const entry = protocol[msg_part.type]
+    return async pkt => ::
+      const entry = protocol[pkt.type]
       if undefined === entry ::
-        return on_message @ null, msg_part
+        return on_error @ false, @: endpoint, pkt
 
-      const msg_full = await entry.recv @ msg_part, this
-      if ! msg_full :: return msg_full
-      return on_message @ endpoint, msg_full, msg_part
+      const msg = await entry.recv @ pkt, this
+      if ! msg :: return msg
+
+      try ::
+        return await on_message @ endpoint, msg, pkt
+      catch err ::
+        return on_error @ err, @: endpoint, msg, pkt
 
   _createStateMap() :: return new Map()
   byUniqId = this._createStateMap()

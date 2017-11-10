@@ -5,4 +5,4 @@ main().catch @ console.error
 async function main() ::
   const hub = new TestHub()
 
-  hub.endpoint @ (ep, msg_full, msg_part) => ::
+  hub.endpoint @ (ep, msg, pkt) => ::

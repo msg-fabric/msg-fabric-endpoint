@@ -163,6 +163,6 @@ function composeFramings() ::
   function load(obj, buf, parseTrailer) ::
     const dv = new DataView @ new Uint8Array(buf)
     this.unpack(obj, dv, 0)
-    if undefined !== msg.trailer && undefined !== parseTrailer ::
-      parseTrailer(msg)
+    if undefined !== obj.trailer && undefined !== parseTrailer ::
+      parseTrailer(obj)
     return dv
