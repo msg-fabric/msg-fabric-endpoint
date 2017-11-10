@@ -1,4 +1,6 @@
 const little_endian = true
+const c_direct = 'direct'
+const c_future = '_future_'
 const c_multipart = 'multipart'
 const c_streaming = 'streaming'
 
@@ -14,7 +16,7 @@ function unpack_routing(obj, dv, offset) ::
 
 export const basic_framings = @:
   from_routing: @:
-    size: 8, bit: 0x1, mask: 0x1
+    size: 8, bits: 0x1, mask: 0x1
     test(obj) :: return null != obj.from_id
 
     pack(obj, dv, offset) ::
@@ -26,7 +28,7 @@ export const basic_framings = @:
       unpack_routing(obj.from_id, dv, offset)
 
   response: @:
-    size: 4, bit: 0x2, mask: 0x2
+    size: 4, bits: 0x2, mask: 0x2
     test(obj) :: return null != obj.token
 
     pack(obj, dv, offset) ::
@@ -36,17 +38,19 @@ export const basic_framings = @:
       obj.token = dv.getInt32 @ 0+offset, little_endian
 
   direct: @:
-    size: 0, bit: 0x0, mask: 0xc
+    size: 0, bits: 0x0, mask: 0xc
+    transport: c_direct
     pack(obj, dv, offset) ::
     unpack(obj, dv, offset) ::
 
   _future_: @:
-    size: 0, bit: 0x4, mask: 0xc
+    size: 0, bits: 0x4, mask: 0xc
+    transport: c_future
     pack(obj, dv, offset) ::
     unpack(obj, dv, offset) ::
 
   multipart: @:
-    size: 6, bit: 0x8, mask: 0xc
+    size: 6, bits: 0x8, mask: 0xc
     transport: c_multipart
     test(obj) ::
       return c_multipart === obj.transport
@@ -63,7 +67,7 @@ export const basic_framings = @:
       obj.transport = c_multipart
 
   streaming: @:
-    size: 8, bit: 0xc, mask: 0xc
+    size: 8, bits: 0xc, mask: 0xc
     transport: c_streaming
     test(obj) ::
       return c_streaming === obj.transport
@@ -78,14 +82,10 @@ export const basic_framings = @:
       obj.transport = c_streaming
 
   trailer: @:
-    size: null, bit: 0, mask: 0
-    len(obj) ::
-      let trailer = obj.trailer
-      if null == trailer :: return this.size
-      trailer = Uint8Array.from(obj.trailer)
-      return this.size + trailer.byteLength
+    size: null, bits: 0, mask: 0
+    len: trailer_len
     pack(obj, dv, offset) ::
-      let trailer = obj.trailer
+      let trailer = obj.trailer || obj.header
       if trailer ::
         trailer = Uint8Array.from(obj.trailer)
         if null === dv :: return trailer.byteLength
@@ -95,6 +95,12 @@ export const basic_framings = @:
       obj.trailer = dv.buffer.slice(offset)
 
 
+function trailer_len(obj, cacheTrailer) ::
+  let trailer = obj.trailer || obj.header
+  if null == trailer :: return 0
+  trailer = Uint8Array.from(obj.trailer)
+  if cacheTrailer :: obj.trailer = trailer
+  return trailer.byteLength
 
 export const framings = composeFramings()
 export default framings
@@ -104,7 +110,7 @@ function composeFramings() ::
     f.name = name
     if f.pack :: f.pack.size = f.size
     if f.unpack :: f.unpack.size = f.size
-    if f.test :: f.test.bit = f.bit
+    if f.test :: f.test.bits = f.bits
 
   const byBits = []
   for let bits=0; bits <= 0xf; bits++ ::
@@ -115,7 +121,7 @@ function composeFramings() ::
   function testBits(obj) ::
     let i = 0
     for const test of framingTests ::
-      if test(obj) :: i |= test.bit
+      if test(obj) :: i |= test.bits
     return i
 
   byBits.testBits = testBits
@@ -126,15 +132,6 @@ function composeFramings() ::
 
   return byBits
 
-  function compose(bits) ::
-    const parts = Object.values(basic_framings)
-      .filter @ f => f.bit === (bits & f.mask)
-
-    const pack = parts.map(f=>f.pack).reduce(fold)
-    const unpack = parts.map(f=>f.unpack).reduce(fold)
-    const {len} = parts.find(f=>f.len)
-    return @: bits, mask:0xf, size: pack.size, pack, unpack, len, parts
-
   function fold(r, f) ::
     fn.size = r.size + f.size
     return fn
@@ -143,3 +140,29 @@ function composeFramings() ::
       r(obj, dv, offset)
       f(obj, dv, offset + 0|f.size)
 
+  function compose(bits) ::
+    const parts = Object.values(basic_framings)
+      .filter @ f => f.bits === (bits & f.mask)
+
+    const pack = parts.map(f=>f.pack).reduce(fold)
+    const unpack = parts.map(f=>f.unpack).reduce(fold)
+    const {transport} = parts.find(f=>f.transport)
+    return @:
+      bits, mask:0xf, size: pack.size
+      transport, parts
+      pack, unpack
+      create, load
+
+  function create(...args) ::
+    const obj = Object.assign @ {}, ...args
+    const len = this.size + trailer_len(obj, true)
+    const dv = new DataView @ new ArrayBuffer(len)
+    this.pack(obj, dv, 0)
+    return dv
+
+  function load(obj, buf, parseTrailer) ::
+    const dv = new DataView @ new Uint8Array(buf)
+    this.unpack(obj, dv, 0)
+    if undefined !== msg.trailer && undefined !== parseTrailer ::
+      parseTrailer(msg)
+    return dv

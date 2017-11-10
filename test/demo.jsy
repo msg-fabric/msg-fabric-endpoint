@@ -1,6 +1,17 @@
 import TestHub from './_test_hub.jsy'
 import what from '../dist'
-import {framings} from '../dist'
+import {framings, basic_protocols} from '../dist'
 console.log @ framings.testBits @:
   from_id: {}
   transport: 'streaming'
+
+::
+  const protocols = []
+  basic_protocols.json @ protocols, @:
+  console.dir @ protocols, @: colors: true
+
+::
+  const protocols = []
+  basic_protocols.binary @ protocols, @:
+  console.dir @ protocols, @: colors: true
+
