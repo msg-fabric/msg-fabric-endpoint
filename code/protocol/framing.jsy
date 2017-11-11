@@ -116,7 +116,6 @@ export const basic_framings = @:
 function trailer_len(obj, cacheTrailer) ::
   let trailer = obj.trailer
   if null == trailer :: return 0
-  console.log @ 'has trailer!', trailer
   if ! ArrayBuffer.isView(trailer) ::
     trailer = new Uint8Array(trailer)
   if cacheTrailer :: obj.trailer = trailer
@@ -127,13 +126,23 @@ export default framings
 
 function composeFramings() ::
   for const [name, f] of Object.entries(basic_framings) ::
-    const {size, bits} = f
-    const op = `${name}[${f.size}]`
-    const info = @{} op, size, bits
-    f.op = op
-    if f.f_pack :: Object.assign @ f.f_pack, info
-    if f.f_unpack :: Object.assign @ f.f_unpack, info
-    if f.f_test :: Object.assign @ f.f_test, info
+    const {size, bits} = f, info = {size, bits}
+    if 'production' !== process.env.NODE_ENV ::
+      const op = `${name}[${f.size}]`
+      f.op = info.op = op
+      if f.f_pack ::
+        Object.assign @ f.f_pack, info
+        Object.defineProperty @ f.f_pack, 'name', @{} value: `f_pack «${op}»`
+      if f.f_unpack ::
+        Object.assign @ f.f_unpack, info
+        Object.defineProperty @ f.f_unpack, 'name', @{} value: `f_unpack «${op}»`
+      if f.f_test ::
+        Object.assign @ f.f_test, info
+        Object.defineProperty @ f.f_test, 'name', @{} value: `f_test «${op}»`
+    else ::
+      if f.f_pack :: f.f_pack.size = size
+      if f.f_unpack :: f.f_unpack.size = size
+      if f.f_test :: f.f_test.bits = bits
 
   const byBits = []
   for let bits=0; bits <= 0xf; bits++ ::
@@ -157,11 +166,12 @@ function composeFramings() ::
 
   function fold(r, f, ...args) ::
     const offset = 0|r.size
-    pack2.size = r.size + (0|f.size)
-    pack2.op = `${r.op}-${f.op}@${offset}`
-    return pack2
+    fpk2.size = r.size + (0|f.size)
+    if 'production' !== process.env.NODE_ENV ::
+      fpk2.op = `${r.op}-${f.op}@${offset}`
+    return fpk2
 
-    function pack2(obj, dv) ::
+    function fpk2(obj, dv) ::
       r(obj, dv, 0)
       f(obj, dv, offset)
 
@@ -174,10 +184,12 @@ function composeFramings() ::
     const {transport} = parts.find(f=>f.transport)
     const {size, op} = pack_frames
 
-    Object.defineProperty @ pack, 'name', @{} value: `pack «${op}»`
-    Object.defineProperty @ pack_frames, 'name', @{} value: `pack_frames «${op}»`
-    Object.defineProperty @ unpack, 'name', @{} value: `unpack «${op}»`
-    Object.defineProperty @ unpack_frames, 'name', @{} value: `unpack_frames «${op}»`
+    if 'production' !== process.env.NODE_ENV ::
+      Object.defineProperty @ pack, 'name', @{} value: `pack «${op}»`
+      Object.defineProperty @ pack_frames, 'name', @{} value: `pack_frames «${op}»`
+      Object.defineProperty @ unpack, 'name', @{} value: `unpack «${op}»`
+      Object.defineProperty @ unpack_frames, 'name', @{} value: `unpack_frames «${op}»`
+
     return @:
       bits, mask:0xf, size, op
       transport, parts
@@ -193,7 +205,6 @@ function composeFramings() ::
       const dv = new DataView @ new ArrayBuffer(len)
       pack_frames(pkt_obj, dv)
       pkt_obj.type = pkt_type
-      console.log @ pack.name, pkt_obj
       return pkt_obj.header = dv.buffer
 
     function unpack(pkt, unpackTrailer) ::
@@ -205,5 +216,4 @@ function composeFramings() ::
       if undefined !== info.trailer && undefined !== unpackTrailer ::
         unpackTrailer(info)
 
-      console.log @ unpack.name, info
       return pkt.info = info

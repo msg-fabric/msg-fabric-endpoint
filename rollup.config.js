@@ -1,10 +1,13 @@
 import rpi_babel from 'rollup-plugin-babel'
+import rpi_replace from 'rollup-plugin-replace'
 
 const sourcemap = 'inline'
 
 const external = ['crypto']
 
 const plugins = [jsy_plugin()]
+const replace_prod = {'process.env.NODE_ENV': "'production'"}
+const plugins_prod = plugins.concat([rpi_replace({values: replace_prod})])
 
 export default [
 	{ input: 'code/index.jsy',
@@ -19,7 +22,7 @@ export default [
       { file: `dist/nodejs.js`, format: 'cjs' },
       { file: `dist/nodejs.mjs`, format: 'es' },
     ],
-    sourcemap, external, plugins },
+    sourcemap, external, plugins: plugins_prod },
 
 	{ input: 'code/browser.jsy',
     name: 'msg-fabric-sink',
@@ -28,7 +31,7 @@ export default [
       { file: `dist/browser.mjs`, format: 'es' },
       { file: `dist/browser.umd.js`, format: 'umd' },
     ],
-    sourcemap, external:[], plugins },
+    sourcemap, external:[], plugins: plugins_prod },
 ]
 
 
