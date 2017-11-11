@@ -1,42 +1,20 @@
-import framings from './framing.jsy'
-
 export default function json_protocol(protocols, shared, packetParser) ::
-  const {concatBuffers, unpack_utf8} = packetParser
-  const {trailerAsJSON, createMultipart} = shared
+  const {unpack_utf8, packPacketObj} = packetParser
+  const {bindTransports, createMultipart} = shared
 
-  const high = 0x00 // 0x0* — JSON header, JSON body; NDJSON streaming 
-  const transports = @: direct, multipart, streaming
-
-  for const frame of framings ::
-    if null == frame :: continue
-    const impl = transports[frame.transport]
-    if !impl :: continue
-
-    const pkt_type = high | frame.bits
-    const {send, recv} = impl(frame)
-
-    protocols.outbound[pkt_type] = @:
-      pkt_type
-      send(chan, obj) ::
-        chan.context.header = frame.create(obj, chan.context)
-        return send(chan, obj)
-
-    protocols.inbound[pkt_type] = @:
-      pkt_type
-      recv(pkt, sink) ::
-        const dv = frame.load(pkt, pkt._raw_, trailerAsJSON)
-        return recv(pkt, sink)
-
-  return protocols
-
+  return bindTransports @ protocols
+    0x00 // 0x0* — JSON header, JSON body; NDJSON streaming 
+    @: direct, multipart, streaming
 
   function direct(frame) ::
     return @:
       send(chan, obj) ::
-        chan.context.body = JSON.stringify(obj.body)
-        return chan.sendRaw @ chan.pack()
+        obj.body = JSON.stringify(obj.body)
+        const pkt = packPacketObj(obj)
+        return chan.sendRaw @ pkt
       recv(pkt, sink) ::
-        return pkt
+        const body = JSON.parse @ pkt.body_utf8()
+        return @: body, info: pkt.info
 
   function multipart(frame) ::
     return @:
@@ -46,12 +24,10 @@ export default function json_protocol(protocols, shared, packetParser) ::
         const feed = sink.entryFor @ pkt.msgid, createMultipart
         const buf = feed @ pkt.seq, pkt.body_buffer()
         if undefined !== buf ::
-          let body = unpack_utf8 @ buf
-          body = JSON.parse @ body
-          pkt.body = body
-          return pkt
+          let body = JSON.parse @ unpack_utf8 @ buf
+          return @: body
 
   function streaming(frame) ::
     return @:
-      send() :: throw new Error @ 'TODO'
+      send(chan, obj) :: throw new Error @ 'TODO'
       recv() :: throw new Error @ 'TODO'

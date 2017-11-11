@@ -3,12 +3,13 @@ import endpoint_plugin from './plugin.jsy'
 const getRandomValues = 'undefined' !== typeof window
   ? window.crypto.getRandomValues : null
 
-export function random_id_target() ::
+endpoint_browser.random_id_target = random_id_target
+function random_id_target() ::
   const arr = new Int32Array(1)
   getRandomValues(arr)
   return arr[0]
 
-export default function(plugin_options={}) ::
+export default function endpoint_browser(plugin_options={}) ::
   if null == plugin_options.random_id_target ::
     plugin_options.random_id_target = random_id_target
 

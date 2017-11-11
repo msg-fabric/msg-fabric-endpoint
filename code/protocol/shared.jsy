@@ -1,3 +1,4 @@
+import framings from './framing.jsy'
 
 export default function(packetParser) ::
   const {concatBuffers, unpack_utf8} = packetParser
@@ -5,6 +6,7 @@ export default function(packetParser) ::
   return @:
     trailerAsJSON
     createMultipart
+    bindTransports
 
   function trailerAsJSON(pkt) ::
     const trailer = pkt.unpack_utf8 @ pkt.trailer
@@ -21,3 +23,39 @@ export default function(packetParser) ::
         const res = concatBuffers(parts)
         parts = null
         return res
+
+  function bindTransports(protocols, highbits, transports) ::
+    const parseTrailer = transports.parseTrailer || trailerAsJSON
+    const local = @:
+      inbound: []
+      outbound: []
+    local.inbound.choose = framings.choose
+    local.outbound.choose = framings.choose
+      
+    for const frame of framings ::
+      if null == frame :: continue
+      const impl = transports[frame.transport]
+      if ! impl :: continue
+
+      const pkt_type = highbits | frame.bits
+      const {send, recv} = impl(frame)
+
+      const outbound = @:
+        pkt_type
+        send(chan, obj) ::
+          frame.pack(pkt_type, obj)
+          return send(chan, obj)
+
+      const inbound = @:
+        pkt_type
+        recv(pkt, sink) ::
+          frame.unpack(pkt, parseTrailer)
+          return recv(pkt, sink)
+
+      protocols.outbound[pkt_type] = outbound
+      protocols.inbound[pkt_type] = inbound
+
+      local.outbound[frame.bits] = outbound
+      local.inbound[frame.bits] = inbound
+
+    return local

@@ -1,4 +1,5 @@
 export * from './framing.jsy'
+import framings from './framing.jsy'
 import shared_proto from './shared.jsy'
 import json_proto from './json.jsy'
 import binary_proto from './binary.jsy'
@@ -9,6 +10,15 @@ export default function init_protocol(packetParser) ::
     outbound: []
 
   const shared = shared_proto @ packetParser
-  json_proto @ protocols, shared, packetParser
-  binary_proto @ protocols, shared, packetParser
+  const json = json_proto @ protocols, shared, packetParser
+  const binary = binary_proto @ protocols, shared, packetParser
+
+  protocols.json = json
+  protocols.inbound.json = json.inbound
+  protocols.outbound.json = json.outbound
+
+  protocols.binary = binary
+  protocols.inbound.binary = binary.inbound
+  protocols.outbound.binary = binary.outbound
   return protocols
+

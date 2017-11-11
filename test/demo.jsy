@@ -5,18 +5,29 @@ main().catch @ console.error
 async function main() ::
   const hub = new TestHub()
 
-  const info = hub.endpoint @ async (ep, msg, pkt) => ::
+  const tgt_ping = hub.endpoint @ ep_ping
+  const tgt_pong = hub.endpoint @ ep_pong
+
+  async function ep_ping(ep, msg, pkt) ::
     if undefined === msg ::
-      console.dir @ ep, @: colors: true
-      console.log @ ep
-      return 'awesome'
+      console.log @ 'PING initializeed', @: tgt_ping, tgt_pong
+      console.log @ 'PING sending "hello"'
+      ep.to(tgt_pong, {token: 1942})
+        .send @: say: 'hello'
+      return
 
-    console.dir @
-      @: ep, msg, pkt
-      @: colors: true
+    console.log()
+    console.log @ 'PING recv:', msg
+    console.log()
 
+  async function ep_pong(ep, msg, pkt) ::
+    if undefined === msg ::
+      console.log @ 'PONG initializeed', @: tgt_ping, tgt_pong
+      return
 
-  console.log @ info
-  console.log @ +info
-  console.log @ await info
-  console.log @ 'done'
+    console.log()
+    console.log @ 'PONG recv:', msg
+    console.log @ 'PONG sending "salut"'
+    ep.to(msg.info)
+      .send @: reply: 'salut'
+    console.log()

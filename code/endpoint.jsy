@@ -5,11 +5,50 @@ export default class Endpoint ::
     return Endpoint
 
   valueOf() :: return this.from_id
-  inspect() :: return `«Endpoint ${this.id_target}»`
+  inspect() :: return `«Endpoint ${this.from_id.id_target}»`
 
-  constructor(from_id, hub) ::
+  constructor(id_target, hub) ::
+    if null != id_target ::
+      const id_router = hub.router.id_self
+      this.from_id = Object.freeze @: id_router, id_target
     this.hub = hub
-    if null != from_id ::
-      this.from_id = from_id
-      Object.assign @ this, from_id
+    this.chan = hub.connect_self()
+
+  get to() ::
+    return this._mergeTo @ this._protocol.json
+
+  _mergeTo(protocol) ::
+    const {from_id, chan} = this
+    const ctx = @{} from_id
+    merge.with = merge
+    merge.send = send
+    return merge
+
+    function merge(...args) ::
+      for let tgt of args ::
+        if 'number' === typeof tgt :: tgt = @: id_target: tgt
+        const {from_id: reply_id, id_target, id_router, token, msgid} = tgt
+
+        if undefined !== id_target ::
+          if undefined === id_router ::
+            if ! ctx.id_router ::
+              // implicitly on this endpoint's router
+              ctx.id_router = from_id.id_router
+          else ctx.id_router = id_router
+          ctx.id_target = id_target
+        else if undefined !== id_router ::
+          throw new Error @ `Passing 'id_router' requires 'id_target'`
+        else if undefined !== reply_id && ! ctx.id_target ::
+          ctx.id_router = reply_id.id_router
+          ctx.id_target = reply_id.id_target
+
+        if undefined !== token :: ctx.token = token
+        if undefined !== msgid && ! ctx.token :: ctx.token = msgid
+      return merge
+
+    function send(body) ::
+      ctx.transport = 'direct'
+      ctx.body = body
+      const pkt_handler = protocol.choose(ctx)
+      return pkt_handler.send(chan, ctx)
 

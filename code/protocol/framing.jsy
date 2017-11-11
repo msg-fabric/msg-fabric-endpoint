@@ -6,12 +6,12 @@ const c_streaming = 'streaming'
 
 
 function pack_routing(obj, dv, offset) ::
-  dv.setUint32 @ 0+offset, obj.id_router, little_endian
-  dv.setUint32 @ 4+offset, obj.id_target
+  dv.setInt32 @ 0+offset, 0|obj.id_router, little_endian
+  dv.setInt32 @ 4+offset, 0|obj.id_target, little_endian
 
 function unpack_routing(obj, dv, offset) ::
-  obj.id_router = dv.getUint32 @ 0+offset, little_endian
-  obj.id_target = dv.getUint32 @ 4+offset, little_endian
+  obj.id_router = dv.getInt32 @ 0+offset, little_endian
+  obj.id_target = dv.getInt32 @ 4+offset, little_endian
 
 
 export const basic_framings = @:
@@ -92,7 +92,8 @@ export const basic_framings = @:
         new Uint8Array(dv.buffer).set @ trailer, offset
       return 0
     unpack(obj, dv, offset) ::
-      obj.trailer = dv.buffer.slice(offset)
+      if dv.byteLength > offset ::
+        obj.trailer = dv.buffer.slice(offset)
 
 
 function trailer_len(obj, cacheTrailer) ::
@@ -127,42 +128,50 @@ function composeFramings() ::
   byBits.testBits = testBits
   byBits.choose = function (obj, lst) ::
     const i = testBits(obj)
-    if null == lst :: lst = byBits
+    if null == lst :: lst = this || byBits
     return lst[i]
 
   return byBits
 
-  function fold(r, f) ::
-    fn.size = r.size + f.size
+  function fold(r, f, ...args) ::
+    const offset = 0|r.size + 0|r.offset
+    fn.offset = offset
+    fn.size = r.size + 0|f.size
     return fn
 
-    function fn(obj, dv, offset) ::
-      r(obj, dv, offset)
-      f(obj, dv, offset + 0|f.size)
+    function fn(obj, dv) ::
+      r(obj, dv, 0)
+      f(obj, dv, offset)
 
   function compose(bits) ::
     const parts = Object.values(basic_framings)
       .filter @ f => f.bits === (bits & f.mask)
 
-    const pack = parts.map(f=>f.pack).reduce(fold)
-    const unpack = parts.map(f=>f.unpack).reduce(fold)
+    const pack_frames = parts.map(f=>f.pack).reduce(fold)
+    const unpack_frames = parts.map(f=>f.unpack).reduce(fold)
     const {transport} = parts.find(f=>f.transport)
+    const {size} = pack_frames
     return @:
-      bits, mask:0xf, size: pack.size
+      bits, mask:0xf, size
       transport, parts
       pack, unpack
-      create, load
 
-  function create(...args) ::
-    const obj = Object.assign @ {}, ...args
-    const len = this.size + trailer_len(obj, true)
-    const dv = new DataView @ new ArrayBuffer(len)
-    this.pack(obj, dv, 0)
-    return dv
+    function pack(pkt_type, pkt_obj) ::
+      if ! @ 0 <= pkt_type && pkt_type <= 255 ::
+        throw new TypeError @ `Expected pkt_type to be [0..255]`
+      const len = size + trailer_len(pkt_obj, true)
+      const dv = new DataView @ new ArrayBuffer(len)
+      pack_frames(pkt_obj, dv)
+      pkt_obj.type = pkt_type
+      return pkt_obj.header = dv.buffer
 
-  function load(obj, buf, parseTrailer) ::
-    const dv = new DataView @ new Uint8Array(buf)
-    this.unpack(obj, dv, 0)
-    if undefined !== obj.trailer && undefined !== parseTrailer ::
-      parseTrailer(obj)
-    return dv
+    function unpack(pkt, parseTrailer) ::
+      const buf = pkt.header_buffer()
+      const dv = new DataView @ new Uint8Array(buf).buffer
+
+      const info = {}
+      unpack_frames(info, dv)
+      if undefined !== info.trailer && undefined !== parseTrailer ::
+        parseTrailer(info)
+
+      return pkt.info = info

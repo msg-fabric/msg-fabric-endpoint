@@ -13,6 +13,22 @@ export default [
       { file: `dist/index.mjs`, format: 'es' },
     ],
     sourcemap, external, plugins },
+
+	{ input: 'code/nodejs.jsy',
+		output: [
+      { file: `dist/nodejs.js`, format: 'cjs' },
+      { file: `dist/nodejs.mjs`, format: 'es' },
+    ],
+    sourcemap, external, plugins },
+
+	{ input: 'code/browser.jsy',
+    name: 'msg-fabric-sink',
+		output: [
+      { file: `dist/browser.js`, format: 'cjs' },
+      { file: `dist/browser.mjs`, format: 'es' },
+      { file: `dist/browser.umd.js`, format: 'umd' },
+    ],
+    sourcemap, external:[], plugins },
 ]
 
 
