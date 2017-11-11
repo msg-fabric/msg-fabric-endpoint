@@ -1,12 +1,7 @@
-import MessageHub from 'msg-fabric-core'
+import Hub from 'msg-fabric-core'
 import router_plugin from 'msg-fabric-core/dist/plugin-router-node'
-import tcp from 'msg-fabric-core/dist/plugin-tcp'
-
 import {endpoint_nodejs} from '../dist'
 
-const TestHub = MessageHub.plugin @
+export default Hub.plugin @
   router_plugin()
-  tcp()
   endpoint_nodejs()
-
-export default TestHub

@@ -5,4 +5,18 @@ main().catch @ console.error
 async function main() ::
   const hub = new TestHub()
 
-  hub.endpoint @ (ep, msg, pkt) => ::
+  const info = hub.endpoint @ async (ep, msg, pkt) => ::
+    if undefined === msg ::
+      console.dir @ ep, @: colors: true
+      console.log @ ep
+      return 'awesome'
+
+    console.dir @
+      @: ep, msg, pkt
+      @: colors: true
+
+
+  console.log @ info
+  console.log @ +info
+  console.log @ await info
+  console.log @ 'done'

@@ -7,12 +7,12 @@ export default function(plugin_options={}) ::
 
   return @: order: 1, subclass, post
   
-  function subclass(MessageHub_PI, bases) ::
-    const {packetParser} = MessageHub_PI.prototype
+  function subclass(FabricHub_PI, bases) ::
+    const {packetParser} = FabricHub_PI.prototype
     if null==packetParser || ! packetParser.isPacketParser() ::
       throw new TypeError @ `Invalid packetParser for plugin`
     
-    MessageHub_PI.prototype.endpoint =
+    FabricHub_PI.prototype.endpoint =
       bindEndpointApi @ packetParser
 
   function post(hub) ::
@@ -37,16 +37,31 @@ export default function(plugin_options={}) ::
         if 'function' !== typeof on_message ::
           throw new TypeError @ `Expected 'on_message' function`
         if 'function' !== typeof on_error ::
-          throw new TypeError @ `Expected 'on_error' function`
+          on_error = console.error
+          //throw new TypeError @ `Expected 'on_error' function`
 
+        const id_router = hub.router.id_self
         const id_target = random_id_target()
-        const ep = new Endpoint(id_target, hub)
+        const from_id = Object.freeze @: id_router, id_target
+
+        const ep = new Endpoint(from_id, hub)
 
         const sink = new Sink()
         hub.router.registerTarget @ id_target,
           sink.bindDispatch(ep, on_error, on_error)
 
-        return Promise.resolve(ep)
-          .then(on_message)
-          .catch(on_error)
+        const ready = Promise.resolve(ep).then(on_message)
+        ready.catch(on_error)
+
+        return Object.create @ endpoint_target_api, @:
+          from_id: @{} value: from_id
+          ready: @{} value: ready
+
+const endpoint_target_api = @:
+  valueOf() :: return 0 | this.from_id.id_target
+  inspect() :: return `«Endpoint Target ${this.from_id.id_target}»`
+
+  then(fa, fb) :: return this.ready.then(fa, fb)
+  catch(fn) :: return this.ready.catch(fn)
+  finally(fn) :: return this.ready.finally(fn)
 

@@ -4,9 +4,12 @@ export default class Endpoint ::
     Endpoint.prototype._protocol = outbound
     return Endpoint
 
-  constructor(id_target, hub) ::
+  valueOf() :: return this.from_id
+  inspect() :: return `«Endpoint ${this.id_target}»`
+
+  constructor(from_id, hub) ::
     this.hub = hub
-    if null != id_target ::
-      this.from_id = @{}
-        id_router: hub.router.id_self
-        id_target
+    if null != from_id ::
+      this.from_id = from_id
+      Object.assign @ this, from_id
+
