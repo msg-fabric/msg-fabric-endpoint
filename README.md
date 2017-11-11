@@ -1,2 +1,2 @@
-# msg-fabric-sink
+# msg-fabric-endpoint
 
