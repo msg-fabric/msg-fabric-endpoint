@@ -4,7 +4,7 @@ export default function json_protocol(protocols, shared, packetParser) ::
 
   return bindTransports @ protocols
     0x00 // 0x0* — JSON header, JSON body; NDJSON streaming 
-    @: direct, multipart, streaming
+    @: datagram:direct, direct, multipart, streaming
 
   function direct(frame) ::
     return @:

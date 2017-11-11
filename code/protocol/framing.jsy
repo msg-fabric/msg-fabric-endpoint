@@ -1,6 +1,6 @@
 const little_endian = true
+const c_datagram = 'datagram'
 const c_direct = 'direct'
-const c_future = '_future_'
 const c_multipart = 'multipart'
 const c_streaming = 'streaming'
 
@@ -29,25 +29,38 @@ export const basic_framings = @:
 
   response: @:
     size: 4, bits: 0x2, mask: 0x2
-    test(obj) :: return null != obj.token
+    test(obj) :: return null != obj.msgid
 
     pack(obj, dv, offset) ::
-      dv.setInt32 @ 0+offset, obj.token, little_endian
+      dv.setInt32 @ 0+offset, obj.msgid, little_endian
 
     unpack(obj, dv, offset) ::
-      obj.token = dv.getInt32 @ 0+offset, little_endian
+      const token = dv.getInt32 @ 0+offset, little_endian
+      obj.token = token
+
+  datagram: @:
+    size: 0, bits: 0x0, mask: 0xc
+    transport: c_datagram
+    test(obj) ::
+      if c_datagram === obj.transport :: return true
+      if obj.transport :: return false
+      return ! obj.token
+    pack(obj, dv, offset) ::
+    unpack(obj, dv, offset) ::
+      obj.transport = c_datagram
 
   direct: @:
-    size: 0, bits: 0x0, mask: 0xc
+    size: 4, bits: 0x4, mask: 0xc
     transport: c_direct
+    test(obj) ::
+      if c_direct === obj.transport :: return true
+      if obj.transport :: return false
+      return !! obj.token
     pack(obj, dv, offset) ::
+      dv.setInt32 @ 0+offset, obj.token, little_endian
     unpack(obj, dv, offset) ::
-
-  _future_: @:
-    size: 0, bits: 0x4, mask: 0xc
-    transport: c_future
-    pack(obj, dv, offset) ::
-    unpack(obj, dv, offset) ::
+      obj.msgid = dv.getInt32 @ 0+offset, little_endian
+      obj.transport = c_direct
 
   multipart: @:
     size: 6, bits: 0x8, mask: 0xc
@@ -56,14 +69,14 @@ export const basic_framings = @:
       return c_multipart === obj.transport
 
     pack(obj, dv, offset) ::
-      dv.setUint32 @ 0+offset, obj.msgid, little_endian
-      dv.setInt8   @ 4+offset, obj.seq || -1
-      dv.setUint8  @ 5+offset, obj.mp_flags || 0
+      dv.setInt32 @ 0+offset, obj.token, little_endian
+      dv.setInt8  @ 4+offset, obj.seq || -1
+      dv.setUint8 @ 5+offset, obj.mp_flags || 0
 
     unpack(obj, dv, offset) ::
-      obj.msgid     = dv.getUint32 @ 0+offset, little_endian
-      obj.seq       = dv.getInt8   @ 4+offset
-      obj.mp_flags  = dv.getUint8  @ 5+offset
+      obj.msgid     = dv.getInt32 @ 0+offset, little_endian
+      obj.seq       = dv.getInt8  @ 4+offset
+      obj.mp_flags  = dv.getUint8 @ 5+offset
       obj.transport = c_multipart
 
   streaming: @:
@@ -73,33 +86,33 @@ export const basic_framings = @:
       return c_streaming === obj.transport
 
     pack(obj, dv, offset) ::
-      dv.setUint32 @ 0+offset, obj.msgid, little_endian
-      dv.setInt32  @ 4+offset, obj.seq || -1
+      dv.setInt32 @ 0+offset, obj.token, little_endian
+      dv.setInt32 @ 4+offset, obj.seq || -1
 
     unpack(obj, dv, offset) ::
-      obj.msgid = dv.getUint32 @ 0+offset, little_endian
-      obj.seq   = dv.getInt32  @ 4+offset, little_endian
+      obj.msgid = dv.getInt32 @ 0+offset, little_endian
+      obj.seq   = dv.getInt32 @ 4+offset, little_endian
       obj.transport = c_streaming
 
   trailer: @:
     size: null, bits: 0, mask: 0
     len: trailer_len
     pack(obj, dv, offset) ::
-      let trailer = obj.trailer || obj.header
-      if trailer ::
-        trailer = Uint8Array.from(obj.trailer)
-        if null === dv :: return trailer.byteLength
-        new Uint8Array(dv.buffer).set @ trailer, offset
-      return 0
+      let trailer = obj.trailer
+      if null == trailer :: return
+      if ! ArrayBuffer.isView(trailer) ::
+        trailer = new Uint8Array(trailer)
+      new Uint8Array(dv.buffer).set @ trailer, offset
     unpack(obj, dv, offset) ::
       if dv.byteLength > offset ::
         obj.trailer = dv.buffer.slice(offset)
 
 
 function trailer_len(obj, cacheTrailer) ::
-  let trailer = obj.trailer || obj.header
+  let trailer = obj.trailer
   if null == trailer :: return 0
-  trailer = Uint8Array.from(obj.trailer)
+  if ! ArrayBuffer.isView(trailer) ::
+    trailer = new Uint8Array(trailer)
   if cacheTrailer :: obj.trailer = trailer
   return trailer.byteLength
 
@@ -108,10 +121,13 @@ export default framings
 
 function composeFramings() ::
   for const [name, f] of Object.entries(basic_framings) ::
-    f.name = name
-    if f.pack :: f.pack.size = f.size
-    if f.unpack :: f.unpack.size = f.size
-    if f.test :: f.test.bits = f.bits
+    const {size, bits} = f
+    const op = `${name}[${f.size}]`
+    const info = @{} op, size, bits
+    f.op = op
+    if f.pack :: Object.assign @ f.pack, info
+    if f.unpack :: Object.assign @ f.unpack, info
+    if f.test :: Object.assign @ f.test, info
 
   const byBits = []
   for let bits=0; bits <= 0xf; bits++ ::
@@ -134,12 +150,12 @@ function composeFramings() ::
   return byBits
 
   function fold(r, f, ...args) ::
-    const offset = 0|r.size + 0|r.offset
-    fn.offset = offset
-    fn.size = r.size + 0|f.size
-    return fn
+    const offset = 0|r.size
+    pack2.size = r.size + (0|f.size)
+    pack2.op = `${r.op}-${f.op}@${offset}`
+    return pack2
 
-    function fn(obj, dv) ::
+    function pack2(obj, dv) ::
       r(obj, dv, 0)
       f(obj, dv, offset)
 
@@ -150,15 +166,19 @@ function composeFramings() ::
     const pack_frames = parts.map(f=>f.pack).reduce(fold)
     const unpack_frames = parts.map(f=>f.unpack).reduce(fold)
     const {transport} = parts.find(f=>f.transport)
-    const {size} = pack_frames
+    const {size, op} = pack_frames
+
+    Object.defineProperty @ pack, 'name', @{} value: `pack «${op}»`
+    Object.defineProperty @ unpack, 'name', @{} value: `unpack «${op}»`
     return @:
-      bits, mask:0xf, size
+      bits, mask:0xf, size, op
       transport, parts
       pack, unpack
 
     function pack(pkt_type, pkt_obj) ::
       if ! @ 0 <= pkt_type && pkt_type <= 255 ::
         throw new TypeError @ `Expected pkt_type to be [0..255]`
+
       const len = size + trailer_len(pkt_obj, true)
       const dv = new DataView @ new ArrayBuffer(len)
       pack_frames(pkt_obj, dv)

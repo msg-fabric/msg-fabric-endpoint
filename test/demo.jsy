@@ -11,8 +11,11 @@ async function main() ::
   async function ep_ping(ep, msg, pkt) ::
     if undefined === msg ::
       console.log @ 'PING initializeed', @: tgt_ping, tgt_pong
-      console.log @ 'PING sending "hello"'
-      ep.to(tgt_pong, {token: 1942})
+
+      const token = 1942
+      console.log @ 'PING sending "hello" with token ${token}'
+      ep.to(tgt_pong)
+        .with @: token
         .send @: say: 'hello'
       return
 

@@ -43,7 +43,7 @@ export default class Endpoint ::
           ctx.id_target = reply_id.id_target
 
         if undefined !== token :: ctx.token = token
-        if undefined !== msgid && ! ctx.token :: ctx.token = msgid
+        if undefined !== msgid :: ctx.msgid = msgid
       return merge
 
     function send(body) ::
