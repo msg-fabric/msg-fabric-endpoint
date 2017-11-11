@@ -1,16 +1,16 @@
 {
-  "name": "msg-fabric-sink",
+  "name": "msg-fabric-endpoint",
   "version": "0.0.0",
-  "description": "Target sinks for msg-fabric",
+  "description": "Endpoints for msg-fabric",
   "license": "BSD-2-Clause",
   "author": "Shane Holloway <shane.holloway@ieee.org>",
-  "homepage": "https://github.com/shanewholloway/msg-fabric-sink#readme",
+  "homepage": "https://github.com/shanewholloway/msg-fabric-endpoint#readme",
   "bugs": {
-    "url": "https://github.com/shanewholloway/msg-fabric-sink/issues"
+    "url": "https://github.com/shanewholloway/msg-fabric-endpoint/issues"
   },
   "repository": {
     "type": "git",
-    "url": "git+ssh://git@github.com/shanewholloway/msg-fabric-sink.git"
+    "url": "git+ssh://git@github.com/shanewholloway/msg-fabric-endpoint.git"
   },
   "keywords": [
     "ecosystem:msg-fabric"
