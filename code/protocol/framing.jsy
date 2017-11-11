@@ -5,6 +5,7 @@ const c_direct = 'direct'
 const c_multipart = 'multipart'
 const c_streaming = 'streaming'
 
+const _err_msgid_required = `Response reqires 'msgid'`
 const _err_token_required = `Transport reqires 'token'`
 
 function pack_routing(obj, dv, offset) ::
@@ -30,15 +31,17 @@ export const basic_framings = @:
       unpack_routing(obj.from_id, dv, offset)
 
   response: @:
-    size: 4, bits: 0x2, mask: 0x2
+    size: 6, bits: 0x2, mask: 0x2
     f_test(obj) :: return null != obj.msgid
 
     f_pack(obj, dv, offset) ::
+      if ! obj.msgid :: throw new Error @ _err_token_required
       dv.setInt32 @ 0+offset, obj.msgid, little_endian
+      dv.setInt16 @ 4+offset, 0|obj.seq_ack, little_endian
 
     f_unpack(obj, dv, offset) ::
-      const token = dv.getInt32 @ 0+offset, little_endian
-      obj.token = token
+      obj.token = dv.getInt32 @ 0+offset, little_endian
+      obj.seq_ack = dv.getInt16 @ 4+offset, little_endian
 
   datagram: @:
     size: 0, bits: 0x0, mask: 0xc
@@ -74,17 +77,15 @@ export const basic_framings = @:
     f_pack(obj, dv, offset) ::
       if ! obj.token :: throw new Error @ _err_token_required
       dv.setInt32 @ 0+offset, obj.token, little_endian
-      dv.setInt8  @ 4+offset, obj.seq || -1
-      dv.setUint8 @ 5+offset, obj.mp_flags || 0
+      dv.setInt16 @ 4+offset, obj.seq || -1
 
     f_unpack(obj, dv, offset) ::
       obj.msgid     = dv.getInt32 @ 0+offset, little_endian
-      obj.seq       = dv.getInt8  @ 4+offset
-      obj.mp_flags  = dv.getUint8 @ 5+offset
+      obj.seq       = dv.getInt16 @ 4+offset
       obj.transport = c_multipart
 
   streaming: @:
-    size: 8, bits: 0xc, mask: 0xc
+    size: 6, bits: 0xc, mask: 0xc
     transport: c_streaming
     f_test(obj) ::
       return c_streaming === obj.transport
@@ -92,11 +93,11 @@ export const basic_framings = @:
     f_pack(obj, dv, offset) ::
       if ! obj.token :: throw new Error @ _err_token_required
       dv.setInt32 @ 0+offset, obj.token, little_endian
-      dv.setInt32 @ 4+offset, obj.seq || -1
+      dv.setInt16 @ 4+offset, obj.seq || -1
 
     f_unpack(obj, dv, offset) ::
       obj.msgid = dv.getInt32 @ 0+offset, little_endian
-      obj.seq   = dv.getInt32 @ 4+offset, little_endian
+      obj.seq   = dv.getInt16 @ 4+offset, little_endian
       obj.transport = c_streaming
 
   trailer: @:
