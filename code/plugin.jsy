@@ -2,8 +2,17 @@ import init_protocol from './protocol/index.jsy'
 import EndpointBase from './endpoint.jsy'
 import SinkBase from './sink.jsy'
 
-export default function(plugin_options={}) ::
-  const {random_id_target} = plugin_options
+const default_plugin_options = @:
+  on_error: console.error
+  customize({Sink, Endpoint, SourceEndpoint, protocols}) ::
+
+
+export default function(plugin_options) ::
+  plugin_options = Object.assign @ {}, default_plugin_options, plugin_options
+  const @{}
+    random_id_target
+    on_error: default_on_error
+  = plugin_options
 
   return @: order: 1, subclass, post
   
@@ -20,32 +29,33 @@ export default function(plugin_options={}) ::
 
   function bindEndpointApi(packetParser) ::
     const protocols = init_protocol @ packetParser
-    const Endpoint = EndpointBase.forProtocols(protocols)
     const Sink = SinkBase.forProtocols(protocols)
+    const EndpointBase_P = EndpointBase.forProtocols(protocols)
+    class SourceEndpoint extends EndpointBase_P {}
+    class Endpoint extends EndpointBase_P {}
+
+    plugin_options.customize @:
+      Sink, SourceEndpoint, Endpoint, protocols
 
     return function(hub) ::
-      Object.assign @ endpoint, @:
-        create: endpoint
-        source
-      return endpoint
+      return Object.assign @ endpoint, @: source, create: endpoint
 
       function source() ::
-        const ep = new Endpoint(null, hub)
-        return ep
+        return new SourceEndpoint(null, hub)
 
       function endpoint(on_message, on_error) ::
         if 'function' !== typeof on_message ::
           throw new TypeError @ `Expected 'on_message' function`
         if 'function' !== typeof on_error ::
-          on_error = console.error
-          //throw new TypeError @ `Expected 'on_error' function`
+          on_error = default_on_error
+          if 'function' !== typeof on_error ::
+            throw new TypeError @ `Expected 'on_error' function`
 
         const id_target = random_id_target()
         const ep = new Endpoint(id_target, hub)
 
-        const sink = new Sink()
-        hub.router.registerTarget @ id_target,
-          sink.bindDispatch(ep, on_message, on_error)
+        Sink.register @ ep, @{}
+          hub, id_target, on_message, on_error
 
         const ready = Promise.resolve(ep).then(on_message)
         ready.catch(on_error)

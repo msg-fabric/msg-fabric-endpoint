@@ -21,7 +21,7 @@ export default function json_protocol(protocols, shared, packetParser) ::
       send(chan, obj) ::
         throw new Error @ 'TODO: split into packets…'
       recv(pkt, sink) ::
-        const feed = sink.entryFor @ pkt.msgid, createMultipart
+        const feed = sink.stateFor @ pkt.msgid, createMultipart
         const buf = feed @ pkt.seq, pkt.body_buffer()
         if undefined !== buf ::
           let body = JSON.parse @ unpack_utf8 @ buf
