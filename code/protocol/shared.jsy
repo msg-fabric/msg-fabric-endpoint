@@ -1,16 +1,19 @@
 import framings from './framing.jsy'
 
 export default function(packetParser) ::
-  const {concatBuffers, unpack_utf8} = packetParser
+  const {concatBuffers, pack_utf8, unpack_utf8} = packetParser
 
-  return @:
-    trailerAsJSON
+  return @: bindTransports
+    trailerAsJSON, trailerAsBuffer
     createMultipart
-    bindTransports
 
   function trailerAsJSON(pkt) ::
-    const trailer = pkt.unpack_utf8 @ pkt.trailer
+    const trailer = unpack_utf8 @ pkt.trailer
     pkt.trailer = JSON.parse @ trailer
+
+  function trailerAsBuffer(pkt_obj) ::
+    pkt_obj.trailer = pack_utf8 @
+      JSON.stringify @ pkt_obj.trailer
 
   function createMultipart(msgid, sink) ::
     let parts = [], last = false
@@ -25,7 +28,8 @@ export default function(packetParser) ::
         return res
 
   function bindTransports(protocols, highbits, transports) ::
-    const parseTrailer = transports.parseTrailer || trailerAsJSON
+    const packTrailer = transports.packTrailer || trailerAsBuffer
+    const unpackTrailer = transports.unpackTrailer || trailerAsJSON
     const local = @:
       inbound: []
       outbound: []
@@ -43,13 +47,13 @@ export default function(packetParser) ::
       const outbound = @:
         pkt_type
         send(chan, obj) ::
-          frame.pack(pkt_type, obj)
+          frame.pack(pkt_type, obj, packTrailer)
           return send(chan, obj)
 
       const inbound = @:
         pkt_type
         recv(pkt, sink) ::
-          frame.unpack(pkt, parseTrailer)
+          frame.unpack(pkt, unpackTrailer)
           return recv(pkt, sink)
 
       protocols.outbound[pkt_type] = outbound

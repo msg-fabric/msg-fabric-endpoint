@@ -15,7 +15,7 @@ async function main() ::
       const token = 1942
       console.log @ 'PING sending "hello" with token ${token}'
       ep.to(tgt_pong)
-        .with @: token
+        .with @: token, trailer: {awesome: true}
         .send @: say: 'hello'
       return
 

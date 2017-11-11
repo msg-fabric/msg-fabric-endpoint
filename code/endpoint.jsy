@@ -27,7 +27,7 @@ export default class Endpoint ::
     function merge(...args) ::
       for let tgt of args ::
         if 'number' === typeof tgt :: tgt = @: id_target: tgt
-        const {from_id: reply_id, id_target, id_router, token, msgid} = tgt
+        const {from_id: reply_id, id_target, id_router, token, msgid, trailer} = tgt
 
         if undefined !== id_target ::
           if undefined === id_router ::
@@ -44,10 +44,11 @@ export default class Endpoint ::
 
         if undefined !== token :: ctx.token = token
         if undefined !== msgid :: ctx.msgid = msgid
+        if undefined !== trailer :: ctx.trailer = trailer
       return merge
 
     function send(body) ::
-      ctx.transport = 'direct'
+      ctx.transport = 'single'
       ctx.body = body
       const pkt_handler = protocol.choose(ctx)
       return pkt_handler.send(chan, ctx)
