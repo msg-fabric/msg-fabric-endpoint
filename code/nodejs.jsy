@@ -1,13 +1,13 @@
 import {randomBytes} from 'crypto'
 import endpoint_plugin from './plugin.jsy'
 
-endpoint_nodejs.random_id_target = random_id_target
-function random_id_target() ::
+endpoint_nodejs.random_id = random_id
+function random_id() ::
   return randomBytes(4).readInt32LE()
 
 export default function endpoint_nodejs(plugin_options={}) ::
-  if null == plugin_options.random_id_target ::
-    plugin_options.random_id_target = random_id_target
+  if null == plugin_options.random_id ::
+    plugin_options.random_id = random_id
 
   return endpoint_plugin(plugin_options)
 

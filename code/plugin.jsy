@@ -10,7 +10,7 @@ const default_plugin_options = @:
 export default function(plugin_options) ::
   plugin_options = Object.assign @ {}, default_plugin_options, plugin_options
   const @{}
-    random_id_target
+    random_id
     on_error: default_on_error
   = plugin_options
 
@@ -33,6 +33,7 @@ export default function(plugin_options) ::
     const EndpointBase_P = EndpointBase.forProtocols(protocols)
     class SourceEndpoint extends EndpointBase_P {}
     class Endpoint extends EndpointBase_P {}
+    Endpoint.prototype.random_id = random_id
 
     plugin_options.customize @:
       Sink, SourceEndpoint, Endpoint, protocols
@@ -51,7 +52,7 @@ export default function(plugin_options) ::
           if 'function' !== typeof on_error ::
             throw new TypeError @ `Expected 'on_error' function`
 
-        const id_target = random_id_target()
+        const id_target = random_id()
         const ep = new Endpoint(id_target, hub)
 
         Sink.register @ ep, @{}

@@ -21,10 +21,12 @@ export default class Endpoint ::
     return this._mergeTo @ this._protocol.json
 
   _mergeTo(protocol) ::
-    const {from_id, chan} = this
-    const ctx = @{} from_id
+    const {from_id, chan, random_id} = this
+    let ctx = @{} from_id
     merge.with = merge
     merge.send = send
+    merge.multi = multi
+    merge.stream = stream
     return merge
 
     function merge(...args) ::
@@ -45,14 +47,28 @@ export default class Endpoint ::
           ctx.id_router = reply_id.id_router
           ctx.id_target = reply_id.id_target
 
-        if undefined !== token :: ctx.token = token
+        if undefined !== token ::
+          ctx.token = true === token ? random_id() : token
         if undefined !== msgid :: ctx.msgid = msgid
         if undefined !== trailer :: ctx.trailer = trailer
       return merge
 
     function send(body) ::
-      ctx.transport = 'single'
-      ctx.body = body
-      const pkt_handler = protocol.choose(ctx)
-      return pkt_handler.send(chan, ctx)
+      const obj = ctx; ctx = undefined
+      obj.transport = 'single'
+      obj.body = body
+      const handler = protocol.choose(obj)
+      return handler.send(chan, obj)
 
+    function multi(body) ::
+      const obj = ctx; ctx = undefined
+      obj.transport = 'multipart'
+      obj.body = body
+      const handler = protocol.choose(obj)
+      return handler.send(chan, obj)
+
+    function stream(body) ::
+      const obj = ctx; ctx = undefined
+      obj.transport = 'streaming'
+      const handler = protocol.choose(obj)
+      return handler.send(chan, obj)

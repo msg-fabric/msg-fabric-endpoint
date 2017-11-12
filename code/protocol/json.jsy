@@ -1,6 +1,6 @@
 export default function json_protocol(protocols, shared, packetParser) ::
   const {unpack_utf8, packPacketObj} = packetParser
-  const {bindTransports, createMultipart} = shared
+  const {bindTransports, createMultipart, createStreaming} = shared
 
   return bindTransports @ protocols
     0x00 // 0x0* — JSON header, JSON body; NDJSON streaming 
@@ -22,12 +22,22 @@ export default function json_protocol(protocols, shared, packetParser) ::
         throw new Error @ 'TODO: split into packets…'
       recv(pkt, sink) ::
         const feed = sink.stateFor @ pkt.msgid, createMultipart
-        const buf = feed @ pkt.seq, pkt.body_buffer()
-        if undefined !== buf ::
-          let body = JSON.parse @ unpack_utf8 @ buf
-          return @: body
+        let body = feed(pkt)
+        if undefined !== body ::
+          body = JSON.parse @ unpack_utf8 @ body
+          return @: body, info: feed.info
 
   function streaming(frame) ::
     return @:
       send(chan, obj) :: throw new Error @ 'TODO'
-      recv() :: throw new Error @ 'TODO'
+      recv() ::
+        const feed = sink.stateFor @ pkt.msgid, createStreaming
+        let body = feed @ pkt, pkt_as_ndjson
+        if undefined !== body ::
+          body = JSON.parse @ unpack_utf8 @ body
+          return @: body, info: feed.info
+
+  function pkt_as_ndjson(pkt) ::
+    return pkt.body_utf8().split(/\r|\n/)
+      .filter @ l=>l
+      .map @ l=>JSON.parse(l)

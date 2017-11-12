@@ -15,8 +15,8 @@ export default function binary_protocol(protocols, shared, packetParser) ::
         const pkt = packPacketObj(obj)
         return chan.sendRaw @ pkt
       recv(pkt, sink) ::
-        pkt.body = pkt.body_buffer()
-        return pkt
+        const body = pkt.body_buffer()
+        return @: body, info: pkt.info
 
   function multipart(frame) ::
     return @:
@@ -24,13 +24,16 @@ export default function binary_protocol(protocols, shared, packetParser) ::
         throw new Error @ 'TODO: split into packets…'
       recv(pkt, sink) ::
         const feed = sink.stateFor @ pkt.msgid, createMultipart
-        const buf = feed @ pkt.seq, pkt.body_buffer()
-        if undefined !== buf ::
-          pkt.body = buf
-          return pkt
+        let body = feed(pkt)
+        if undefined !== body ::
+          return @: body, info: feed.info
 
   function streaming(frame) ::
     return @:
       send() :: throw new Error @ 'TODO'
-      recv() :: throw new Error @ 'TODO'
+      recv(pkt, sink) ::
+        const feed = sink.stateFor @ pkt.msgid, createStreaming
+        let body = feed(pkt)
+        if undefined !== body ::
+          return @: body, info: feed.info
 

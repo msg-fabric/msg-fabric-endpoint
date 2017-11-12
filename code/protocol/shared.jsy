@@ -18,14 +18,40 @@ export default function(packetParser) ::
   function createMultipart(msgid, sink) ::
     let parts = [], last = false
 
-    return function feed(seq, body_buf) ::
+    return function feed(pkt) ::
+      const seq = body.seq
       if seq < 0 :: last = true; seq = -seq
-      parts[seq-1] = body_buf
+      parts[seq-1] = pkt.body_buffer()
 
-      if ! parts.includes @ undefined ::
-        const res = concatBuffers(parts)
-        parts = null
-        return res
+      if ! last :: return
+      if parts.includes @ undefined :: return
+
+      const res = concatBuffers(parts)
+      parts = null
+      return res
+
+  function createStreaming(msgid, sink) ::
+    let next=1, last = false
+
+    return function feed(pkt, as_content) ::
+      const seq = body.seq
+      if seq < 0 :: last = true; seq = -seq
+      if next == seq ::
+        next++
+      else if next !== 'invalid' ::
+        next = 'invalid'
+        const err = new Error @ `Packet out of sequence`
+        return callback @ err, {pkt}
+      else return
+
+      let body
+      try ::
+        body = undefined !== as_content
+          ? as_content(pkt) : body.body_buffer()
+      catch err ::
+        return callback @ err, {pkt}
+
+      return callback @ null, {body, pkt}
 
   function bindTransports(protocols, highbits, transports) ::
     const packTrailer = transports.packTrailer || trailerAsBuffer

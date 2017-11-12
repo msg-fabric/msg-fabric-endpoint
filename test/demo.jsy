@@ -32,5 +32,7 @@ async function main() ::
     console.log @ 'PONG recv:', msg
     console.log @ 'PONG sending "salut"'
     ep.to(msg.info)
+      .with @: token: true
       .send @: reply: 'salut'
+      //.multi @: reply: 'salut'
     console.log()
