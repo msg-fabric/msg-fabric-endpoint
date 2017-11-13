@@ -102,17 +102,6 @@ export const basic_framings = @:
       obj.seq   = dv.getInt16 @ 4+offset, little_endian
       obj.transport = c_streaming
 
-  trailer: @:
-    size: null, bits: 0, mask: 0
-    len: trailer_len
-    f_pack(obj, dv, offset) ::
-      let trailer = obj.trailer
-      if null == trailer :: return
-      trailer_pack(trailer, dv.buffer, offset)
-    f_unpack(obj, dv, offset) ::
-      if dv.byteLength > offset ::
-        obj.trailer = dv.buffer.slice(offset)
-
 
 function bind_seq_next(offset, seq_pos) ::
   const seq_offset = seq_pos + offset
@@ -120,25 +109,14 @@ function bind_seq_next(offset, seq_pos) ::
   let seq = 2
   return seq_next
 
-  function seq_next(dv, done) ::
+  function seq_next({flags, done}, dv) ::
     if ! done ::
-      dv.setInt16 @ seq_offset, seq++
+      dv.setInt16 @ seq_offset, seq++, little_endian
+      dv.setInt16 @ 2+seq_offset, 0|flags, little_endian
     else ::
-      dv.setInt16 @ seq_offset, -seq
+      dv.setInt16 @ seq_offset, -seq, little_endian
+      dv.setInt16 @ 2+seq_offset, 0|flags, little_endian
       seq = NaN
-
-function trailer_pack(trailer, buffer, offset) ::
-  if ! ArrayBuffer.isView(trailer) ::
-    trailer = new Uint8Array(trailer)
-  new Uint8Array(buffer).set @ trailer, offset
-
-function trailer_len(obj, cacheTrailer) ::
-  let trailer = obj.trailer
-  if null == trailer :: return 0
-  if ! ArrayBuffer.isView(trailer) ::
-    trailer = new Uint8Array(trailer)
-  if cacheTrailer :: obj.trailer = trailer
-  return trailer.byteLength
 
 export const framings = composeFramings()
 export default framings
@@ -221,13 +199,8 @@ function composeFramings() ::
       transport, parts
       pack, unpack
 
-    function alloc(pkt_obj, packTrailer) ::
-      if undefined !== pkt_obj.trailer ::
-        pkt_obj.trailer = packTrailer(pkt_obj)
-      const len = size + trailer_len(pkt_obj, true)
-      return new ArrayBuffer(len)
 
-    function pack(pkt_type, pkt_obj, packTrailer) ::
+    function pack(pkt_type, pkt_obj) ::
       if ! @ 0 <= pkt_type && pkt_type <= 255 ::
         throw new TypeError @ `Expected pkt_type to be [0..255]`
 
@@ -235,22 +208,19 @@ function composeFramings() ::
       if seq_next && null == pkt_obj.seq ::
         pkt_obj.seq = true
 
-      const dv = new DataView @ alloc(pkt_obj, packTrailer)
+      const dv = new DataView @ new ArrayBuffer(size)
       pack_frames(pkt_obj, dv)
       pkt_obj.header = dv.buffer
 
       if true === pkt_obj.seq ::
         _bind_iterable @ pkt_obj, dv.buffer.slice(0,size)
 
-    function unpack(pkt, unpackTrailer) ::
+    function unpack(pkt) ::
       const buf = pkt.header_buffer()
       const dv = new DataView @ new Uint8Array(buf).buffer
 
       const info = {}
       unpack_frames(info, dv)
-      if undefined !== info.trailer && undefined !== unpackTrailer ::
-        unpackTrailer(info)
-
       return pkt.info = info
 
 
@@ -259,18 +229,9 @@ function composeFramings() ::
       const {id_router, id_target, ttl} = pkt_obj
       pkt_obj.next = next
 
-      function next(trailer) ::
-        const pkt_obj = @: type, ttl, id_router, id_target, trailer
-
-        const buf = buf_clone.slice()
-        seq_next @ new DataView @ buf
-        if undefined === trailer ::
-          pkt_obj.header = buf
-        else ::
-          const buf_ex = alloc(pkt_obj, packTrailer)
-          buf_ex.set @ buf, 0
-          trailer_pack(pkt_obj.trailer, buf_ex, size)
-          pkt_obj.header = buf_ex
-          
-        return @: done: false, value: pkt_obj
+      function next(options) ::
+        const header = buf_clone.slice()
+        seq_next @ options, new DataView @ header
+        return @: done: false, value: @{} // pkt_obj
+          type, ttl, id_router, id_target, header
 

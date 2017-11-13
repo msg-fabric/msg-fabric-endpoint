@@ -4,17 +4,8 @@ export default function(packetParser, random_id) ::
   const {asBuffer, concatBuffers, pack_utf8, unpack_utf8} = packetParser
 
   return @: packetParser, random_id
-    trailerAsJSON, trailerAsBuffer
     createMultipart, createStreaming
     bindTransports
-
-  function trailerAsJSON(pkt) ::
-    const trailer = unpack_utf8 @ pkt.trailer
-    pkt.trailer = JSON.parse @ trailer
-
-  function trailerAsBuffer(pkt_obj) ::
-    pkt_obj.trailer = pack_utf8 @
-      JSON.stringify @ pkt_obj.trailer
 
   function createMultipart(msgid, sink) ::
     let parts = [], last = false
@@ -55,8 +46,6 @@ export default function(packetParser, random_id) ::
       return callback @ null, {body, pkt}
 
   function bindTransports(inbound, highbits, transports) ::
-    const packTrailer = transports.packTrailer || trailerAsBuffer
-    const unpackTrailer = transports.unpackTrailer || trailerAsJSON
     const packBody = transports.packBody || asBuffer
     const outbound = []
     outbound.choose = framings.choose
@@ -83,11 +72,11 @@ export default function(packetParser, random_id) ::
       const {t_send, t_recv} = impl
 
       function send(chan, obj) ::
-        frame.pack(pkt_type, obj, packTrailer)
+        frame.pack(pkt_type, obj)
         return t_send(chan, obj)
 
       function recv(pkt, sink) ::
-        frame.unpack(pkt, unpackTrailer)
+        frame.unpack(pkt)
         return t_recv(pkt, sink)
 
       send.pkt_type = recv.pkt_type = pkt_type

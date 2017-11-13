@@ -63,7 +63,7 @@ class MsgCtxBase ::
         ctx.id_router = ctx.from_id.id_router
         continue
 
-      const {from_id: reply_id, id_target, id_router, token, msgid, trailer} = tgt
+      const {from_id: reply_id, id_target, id_router, token, msgid} = tgt
 
       if undefined !== id_target ::
         if undefined === id_router ::
@@ -81,7 +81,6 @@ class MsgCtxBase ::
       if undefined !== token ::
         ctx.token = true === token ? this.random_id() : token
       if undefined !== msgid :: ctx.msgid = msgid
-      if undefined !== trailer :: ctx.trailer = trailer
 
     return this
 
