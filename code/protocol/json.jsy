@@ -1,42 +1,40 @@
-export default function json_protocol(protocols, shared) ::
-  const {bindTransports, createMultipart, createStreaming, packetParser} = shared
+export default function json_protocol(shared) ::
+  const {createMultipart, createStreaming, packetParser} = shared
   const {pack_utf8, unpack_utf8, packPacketObj} = packetParser
 
-  return bindTransports @ protocols
-    0x00 // 0x0* — JSON header, JSON body; NDJSON streaming 
-    @{}
-      packBody(body) ::
-        return pack_utf8 @ JSON.stringify(body)
+  return @{}
+    packBody(body) ::
+      return pack_utf8 @ JSON.stringify(body)
 
-      get datagram() :: return this.direct
-      direct: @{}
-        t_send(chan, obj) ::
-          const pkt = packPacketObj(obj)
-          return chan.sendRaw @ pkt
-        t_recv(pkt, sink) ::
-          const body = JSON.parse @ pkt.body_utf8()
-          return @: body, info: pkt.info
+    get datagram() :: return this.direct
+    direct: @{}
+      t_send(chan, obj) ::
+        const pkt = packPacketObj(obj)
+        return chan @ pkt
+      t_recv(pkt, sink) ::
+        const body = JSON.parse @ pkt.body_utf8()
+        return @: body, info: pkt.info
 
-      multipart: @{}
-        t_send(chan, obj) ::
-          throw new Error @ 'TODO: split into packets…'
-        t_recv(pkt, sink) ::
-          const feed = sink.stateFor @ pkt.msgid, createMultipart
-          let body = feed(pkt)
-          if undefined !== body ::
-            body = JSON.parse @ unpack_utf8 @ body
-            return @: body, info: feed.info
+    multipart: @{}
+      t_send(chan, obj) ::
+        throw new Error @ 'TODO: split into packets…'
+      t_recv(pkt, sink) ::
+        const feed = sink.stateFor @ pkt.msgid, createMultipart
+        let body = feed(pkt)
+        if undefined !== body ::
+          body = JSON.parse @ unpack_utf8 @ body
+          return @: body, info: feed.info
 
-      streaming: @{}
-        t_send(chan, obj) :: throw new Error @ 'TODO'
-        t_recv() ::
-          const feed = sink.stateFor @ pkt.msgid, createStreaming
-          let body = feed @ pkt, pkt_as_ndjson
-          if undefined !== body ::
-            body = JSON.parse @ unpack_utf8 @ body
-            return @: body, info: feed.info
+    streaming: @{}
+      t_send(chan, obj) :: throw new Error @ 'TODO'
+      t_recv() ::
+        const feed = sink.stateFor @ pkt.msgid, createStreaming
+        let body = feed @ pkt, pkt_as_ndjson
+        if undefined !== body ::
+          body = JSON.parse @ unpack_utf8 @ body
+          return @: body, info: feed.info
 
-  function pkt_as_ndjson(pkt) ::
-    return pkt.body_utf8().split(/\r|\n/)
-      .filter @ l=>l
-      .map @ l=>JSON.parse(l)
+function pkt_as_ndjson(pkt) ::
+  return pkt.body_utf8().split(/\r|\n/)
+    .filter @ l=>l
+    .map @ l=>JSON.parse(l)

@@ -1,25 +1,26 @@
 export default class Endpoint ::
-  static forProtocols({outbound}) ::
+  static forProtocols({MsgCtx}) ::
     class Endpoint extends this ::
-    Endpoint.prototype.MsgCtx = outbound.MsgCtx
+    Endpoint.prototype.MsgCtx = MsgCtx
     return Endpoint
 
   valueOf() :: return this.from_id
   inspect() :: return `«Endpoint ${this.from_id.id_target}»`
 
   constructor(id_target, hub) ::
-    if null != id_target ::
-      const id_router = hub.router.id_self
-      this.from_id = Object.freeze @: id_router, id_target
+    const from_id = Object.freeze @
+      null != id_target
+        ? @{} id_router: hub.router.id_self, id_target
+        : null
 
-    const by_msgid = this.createStateMap()
-    const chan = hub.connect_self()
-    const msg_ctx = this.MsgCtx.from @ this, chan
-    const _by_token = this.createReplyMap()
     Object.defineProperties @ this, @:
-      _by_token: @{} value: _by_token
-      to: @{} value(...args) ::
-        return msg_ctx.clone().with @ ...args
+      from_id: @{} value: from_id, enumerable: true
+      to: @{} value: message
+      _by_token: @{} value: this.createReplyMap()
+
+    const msg_ctx = this.MsgCtx.from @ this, hub.router.resolveRoute
+    function message(...args) ::
+      return msg_ctx.clone().with @ ...args
 
   createStateMap() :: return new Map()
   bindStateMap() :: return this.createStateMap()

@@ -54,8 +54,7 @@ export default function(packetParser, random_id) ::
 
       return callback @ null, {body, pkt}
 
-  function identity(x) :: return x
-  function bindTransports(protocols, highbits, transports) ::
+  function bindTransports(inbound, highbits, transports) ::
     const packTrailer = transports.packTrailer || trailerAsBuffer
     const unpackTrailer = transports.unpackTrailer || trailerAsJSON
     const packBody = transports.packBody || asBuffer
@@ -93,7 +92,7 @@ export default function(packetParser, random_id) ::
 
       send.pkt_type = recv.pkt_type = pkt_type
       outbound[frame.bits] = send
-      protocols[pkt_type] = recv
+      inbound[pkt_type] = recv
 
       if 'production' !== process.env.NODE_ENV ::
         const op = send.op = recv.op = frame.op

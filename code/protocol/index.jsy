@@ -7,50 +7,53 @@ import binary_proto from './binary.jsy'
 export default function init_protocol(packetParser, random_id) ::
   const shared = shared_proto @ packetParser, random_id
 
-  const protocols = []
-  const json = json_proto @ protocols, shared
-  const binary = binary_proto @ protocols, shared
+  const inbound = []
+  const json = shared.bindTransports @ inbound
+    0x00 // 0x0* — JSON body; NDJSON streaming 
+    json_proto(shared)
+
+  const binary = shared.bindTransports @ inbound
+    0x10 // 0x1* — binary body
+    binary_proto(shared)
 
   class MsgCtx extends MsgCtxBase ::
   MsgCtx.prototype.random_id = random_id
   MsgCtx.withCodecs @: json, binary, default: json
 
-  return @:
-    inbound: protocols
-    outbound: @:
-      MsgCtx
+  return @: MsgCtx, inbound
 
 
 class MsgCtxBase ::
-  constructor(endpoint, chan) ::
+  constructor(endpoint, resolveRoute) ::
     const {from_id} = endpoint
     const ctx = undefined !== from_id ? {from_id} : {}
     Object.defineProperties @ this, @:
       ctx: @: value: ctx
-      _chan: @: value: chan
+      resolveRoute: @: value: resolveRoute
       endpoint: @: value: endpoint
 
-  static from(endpoint, chan) ::
-    return new this @ endpoint, chan
-
+  static from(endpoint, resolveRoute) ::
+    return new this @ endpoint, resolveRoute
 
   send(body) ::
     const obj = Object.assign @ {}, this.ctx
+    const chan = this.resolveRoute(obj.id_router)
     if true !== obj.token ::
-      return this._codec.send @ this._chan, obj, body
+      return this._codec.send @ chan, obj, body
 
     const token = obj.token = this.random_id()
     const reply = this.endpoint.initReplyToken(token, 'send')
-    return reply @ this._codec.send @ this._chan, obj
+    return reply @ this._codec.send @ chan, obj
 
   stream() ::
     const obj = Object.assign @ {}, this.ctx
+    const chan = this.resolveRoute(obj.id_router)
     if true !== obj.token ::
-      return this._codec.stream @ this._chan, obj
+      return this._codec.stream @ chan, obj
 
     const token = obj.token = this.random_id()
     const reply = this.endpoint.initReplyToken(token, 'stream')
-    return reply @ this._codec.stream @ this._chan, obj
+    return reply @ this._codec.stream @ chan, obj
 
   with(...args) ::
     const ctx = this.ctx

@@ -4,7 +4,7 @@ import SinkBase from './sink.jsy'
 
 const default_plugin_options = @:
   on_error: console.error
-  customize({Sink, Endpoint, SourceEndpoint, protocols}) ::
+  subclass({Sink, Endpoint, SourceEndpoint, protocols}) ::
 
 
 export default function(plugin_options) ::
@@ -35,7 +35,7 @@ export default function(plugin_options) ::
     class Endpoint extends EndpointBase_P {}
     Endpoint.prototype.random_id = random_id
 
-    plugin_options.customize @:
+    plugin_options.subclass @:
       Sink, SourceEndpoint, Endpoint, protocols
 
     return function(hub) ::
