@@ -1,11 +1,12 @@
 import framings from './framing.jsy'
 
-export default function(packetParser) ::
+export default function(packetParser, random_id) ::
   const {concatBuffers, pack_utf8, unpack_utf8} = packetParser
 
-  return @: bindTransports
+  return @: packetParser, random_id
     trailerAsJSON, trailerAsBuffer
-    createMultipart
+    createMultipart, createStreaming
+    bindTransports
 
   function trailerAsJSON(pkt) ::
     const trailer = unpack_utf8 @ pkt.trailer
@@ -53,39 +54,49 @@ export default function(packetParser) ::
 
       return callback @ null, {body, pkt}
 
+  function identity(x) :: return x
   function bindTransports(protocols, highbits, transports) ::
     const packTrailer = transports.packTrailer || trailerAsBuffer
     const unpackTrailer = transports.unpackTrailer || trailerAsJSON
-    const local = @:
-      inbound: []
-      outbound: []
-    local.inbound.choose = framings.choose
-    local.outbound.choose = framings.choose
-      
+    const packBody = transports.packBody
+    const outbound = []
+    outbound.choose = framings.choose
+
     for const frame of framings ::
-      if null == frame :: continue
-      const impl = transports[frame.transport]
-      if ! impl :: continue
+      const impl = frame ? transports[frame.transport] : null
+      if impl ::
+        _bind_frame_impl @ frame, impl
 
+    return @: outbound
+      send(chan, obj, body) ::
+        obj.body = packBody(body)
+        const send = outbound.choose(obj)
+        return send @ chan, obj
+
+      stream(chan, obj) ::
+        obj.transport = 'streaming'
+        const stream = outbound.choose(obj)
+        return stream @ chan, obj
+
+
+    function _bind_frame_impl(frame, impl) ::
       const pkt_type = highbits | frame.bits
-      const {send, recv} = impl(frame)
+      const {t_send, t_recv} = impl
 
-      const outbound = @:
-        pkt_type
-        send(chan, obj) ::
-          frame.pack(pkt_type, obj, packTrailer)
-          return send(chan, obj)
+      function send(chan, obj) ::
+        frame.pack(pkt_type, obj, packTrailer)
+        return t_send(chan, obj)
 
-      const inbound = @:
-        pkt_type
-        recv(pkt, sink) ::
-          frame.unpack(pkt, unpackTrailer)
-          return recv(pkt, sink)
+      function recv(pkt, sink) ::
+        frame.unpack(pkt, unpackTrailer)
+        return t_recv(pkt, sink)
 
-      protocols.outbound[pkt_type] = outbound
-      protocols.inbound[pkt_type] = inbound
+      send.pkt_type = recv.pkt_type = pkt_type
+      outbound[frame.bits] = send
+      protocols[pkt_type] = recv
 
-      local.outbound[frame.bits] = outbound
-      local.inbound[frame.bits] = inbound
+      if 'production' !== process.env.NODE_ENV ::
+        const op = send.op = recv.op = frame.op
+        Object.defineProperty @ send, 'name', @{} value: `send «${op}»`
+        Object.defineProperty @ recv, 'name', @{} value: `recv «${op}»`
 
-    return local

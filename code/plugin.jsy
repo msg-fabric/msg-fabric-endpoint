@@ -28,7 +28,7 @@ export default function(plugin_options) ::
     return hub.endpoint = hub.endpoint(hub)
 
   function bindEndpointApi(packetParser) ::
-    const protocols = init_protocol @ packetParser
+    const protocols = init_protocol @ packetParser, random_id
     const Sink = SinkBase.forProtocols(protocols)
     const EndpointBase_P = EndpointBase.forProtocols(protocols)
     class SourceEndpoint extends EndpointBase_P {}

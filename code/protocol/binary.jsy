@@ -1,39 +1,37 @@
 import framings from './framing.jsy'
 
-export default function binary_protocol(protocols, shared, packetParser) ::
-  const {packPacketObj} = packetParser
-  const {bindTransports, createMultipart} = shared
+export default function binary_protocol(protocols, shared) ::
+  const {bindTransports, createMultipart, packetParser} = shared
+  const {asBuffer, packPacketObj} = packetParser
 
   return bindTransports @ protocols
     0x10 // 0x1* — JSON header, binary body
-    @: direct, multipart, streaming
+    @{}
+      packBody(body) :: return asBuffer @ body
 
+      get datagram() :: return this.direct
+      direct: @{}
+        t_send(chan, obj) ::
+          const pkt = packPacketObj(obj)
+          return chan.sendRaw @ pkt
+        t_recv(pkt, sink) ::
+          const body = pkt.body_buffer()
+          return @: body, info: pkt.info
 
-  function direct(frame) ::
-    return @:
-      send(chan, obj) ::
-        const pkt = packPacketObj(obj)
-        return chan.sendRaw @ pkt
-      recv(pkt, sink) ::
-        const body = pkt.body_buffer()
-        return @: body, info: pkt.info
+      multipart: @{}
+        t_send(chan, obj) ::
+          throw new Error @ 'TODO: split into packets…'
+        t_recv(pkt, sink) ::
+          const feed = sink.stateFor @ pkt.msgid, createMultipart
+          let body = feed(pkt)
+          if undefined !== body ::
+            return @: body, info: feed.info
 
-  function multipart(frame) ::
-    return @:
-      send(chan, obj) ::
-        throw new Error @ 'TODO: split into packets…'
-      recv(pkt, sink) ::
-        const feed = sink.stateFor @ pkt.msgid, createMultipart
-        let body = feed(pkt)
-        if undefined !== body ::
-          return @: body, info: feed.info
-
-  function streaming(frame) ::
-    return @:
-      send() :: throw new Error @ 'TODO'
-      recv(pkt, sink) ::
-        const feed = sink.stateFor @ pkt.msgid, createStreaming
-        let body = feed(pkt)
-        if undefined !== body ::
-          return @: body, info: feed.info
+      streaming: @{}
+        t_send() :: throw new Error @ 'TODO'
+        t_recv(pkt, sink) ::
+          const feed = sink.stateFor @ pkt.msgid, createStreaming
+          let body = feed(pkt)
+          if undefined !== body ::
+            return @: body, info: feed.info
 

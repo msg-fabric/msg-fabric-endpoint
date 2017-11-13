@@ -4,21 +4,105 @@ import shared_proto from './shared.jsy'
 import json_proto from './json.jsy'
 import binary_proto from './binary.jsy'
 
-export default function init_protocol(packetParser) ::
-  const protocols = @:
-    inbound: []
-    outbound: []
+export default function init_protocol(packetParser, random_id) ::
+  const shared = shared_proto @ packetParser, random_id
 
-  const shared = shared_proto @ packetParser
-  const json = json_proto @ protocols, shared, packetParser
-  const binary = binary_proto @ protocols, shared, packetParser
+  const protocols = []
+  const json = json_proto @ protocols, shared
+  const binary = binary_proto @ protocols, shared
 
-  protocols.json = json
-  protocols.inbound.json = json.inbound
-  protocols.outbound.json = json.outbound
+  class MsgCtx extends MsgCtxBase ::
+  MsgCtx.prototype.random_id = random_id
+  MsgCtx.withCodecs @: json, binary, default: json
 
-  protocols.binary = binary
-  protocols.inbound.binary = binary.inbound
-  protocols.outbound.binary = binary.outbound
-  return protocols
+  return @:
+    inbound: protocols
+    outbound: @:
+      MsgCtx
+
+
+class MsgCtxBase ::
+  constructor(endpoint, chan) ::
+    const {from_id} = endpoint
+    const ctx = undefined !== from_id ? {from_id} : {}
+    Object.defineProperties @ this, @:
+      ctx: @: value: ctx
+      _chan: @: value: chan
+      endpoint: @: value: endpoint
+
+  static from(endpoint, chan) ::
+    return new this @ endpoint, chan
+
+
+  send(body) ::
+    const obj = Object.assign @ {}, this.ctx
+    if true !== obj.token ::
+      return this._codec.send @ this._chan, obj, body
+
+    const token = obj.token = this.random_id()
+    const reply = this.endpoint.initReplyToken(token, 'send')
+    return reply @ this._codec.send @ this._chan, obj
+
+  stream() ::
+    const obj = Object.assign @ {}, this.ctx
+    if true !== obj.token ::
+      return this._codec.stream @ this._chan, obj
+
+    const token = obj.token = this.random_id()
+    const reply = this.endpoint.initReplyToken(token, 'stream')
+    return reply @ this._codec.stream @ this._chan, obj
+
+  with(...args) ::
+    const ctx = this.ctx
+    for let tgt of args ::
+      if 'number' === typeof tgt ::
+        ctx.id_target = tgt
+        ctx.id_router = ctx.from_id.id_router
+        continue
+
+      const {from_id: reply_id, id_target, id_router, token, msgid, trailer} = tgt
+
+      if undefined !== id_target ::
+        if undefined === id_router ::
+          if ! ctx.id_router ::
+            // implicitly on the same router
+            ctx.id_router = ctx.from_id.id_router
+        else ctx.id_router = id_router
+        ctx.id_target = id_target
+      else if undefined !== id_router ::
+        throw new Error @ `Passing 'id_router' requires 'id_target'`
+      else if undefined !== reply_id && ! ctx.id_target ::
+        ctx.id_router = reply_id.id_router
+        ctx.id_target = reply_id.id_target
+
+      if undefined !== token ::
+        ctx.token = true === token ? this.random_id() : token
+      if undefined !== msgid :: ctx.msgid = msgid
+      if undefined !== trailer :: ctx.trailer = trailer
+
+    return this
+
+
+  clone() ::
+    return Object.create @ this, @:
+      ctx: @: value: Object.assign @ {}, this.ctx
+
+
+  codec(msg_codec) ::
+    if 'string' === typeof msg_codec ::
+      msg_codec = this._msgCodecs[msg_codec]
+
+    if 'function' !== typeof msg_codec.send ::
+      throw new TypeError @ `Expected packet codec protocol`
+
+    return Object.create @ this, @:
+      _codec: @: value: msg_codec
+
+  static withCodecs(msgCodecs) ::
+    for const [name, msg_codec] of Object.entries @ msgCodecs ::
+      this.prototype[name] = function() ::
+        return this.codec @ msg_codec
+    this.prototype._msgCodecs = msgCodecs
+    this.prototype._codec = msgCodecs.default
+    return this
 

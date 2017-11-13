@@ -1,7 +1,7 @@
 export default class Endpoint ::
   static forProtocols({outbound}) ::
     class Endpoint extends this ::
-    Endpoint.prototype._protocol = outbound
+    Endpoint.prototype.MsgCtx = outbound.MsgCtx
     return Endpoint
 
   valueOf() :: return this.from_id
@@ -11,64 +11,27 @@ export default class Endpoint ::
     if null != id_target ::
       const id_router = hub.router.id_self
       this.from_id = Object.freeze @: id_router, id_target
-    this.hub = hub
-    this.chan = hub.connect_self()
 
-  bindStateMap() :: return new Map()
-  bindReplyMap() :: return new Map()
+    const by_msgid = this.createStateMap()
+    const chan = hub.connect_self()
+    const msg_ctx = this.MsgCtx.from @ this, chan
+    const _by_token = this.createReplyMap()
+    Object.defineProperties @ this, @:
+      _by_token: @{} value: _by_token
+      to: @{} value(...args) ::
+        return msg_ctx.clone().with @ ...args
 
-  get to() ::
-    return this._mergeTo @ this._protocol.json
+  createStateMap() :: return new Map()
+  bindStateMap() :: return this.createStateMap()
+  createReplyMap() :: return new Map()
+  bindReplyMap() :: return this._by_token
 
-  _mergeTo(protocol) ::
-    const {from_id, chan, random_id} = this
-    let ctx = @{} from_id
-    merge.with = merge
-    merge.send = send
-    merge.multi = multi
-    merge.stream = stream
-    return merge
+  initReplyToken(token, kind) ::
+    return x => x
+    return new Promise @ (resolve, reject) => ::
+      this._by_token.set @ token, resolve
+      setTimeout @ timeout, this._ms_timeout
+      function timeout() ::
+        () => reject @ new ReplyTimeout
 
-    function merge(...args) ::
-      for let tgt of args ::
-        if 'number' === typeof tgt :: tgt = @: id_target: tgt
-        const {from_id: reply_id, id_target, id_router, token, msgid, trailer} = tgt
-
-        if undefined !== id_target ::
-          if undefined === id_router ::
-            if ! ctx.id_router ::
-              // implicitly on this endpoint's router
-              ctx.id_router = from_id.id_router
-          else ctx.id_router = id_router
-          ctx.id_target = id_target
-        else if undefined !== id_router ::
-          throw new Error @ `Passing 'id_router' requires 'id_target'`
-        else if undefined !== reply_id && ! ctx.id_target ::
-          ctx.id_router = reply_id.id_router
-          ctx.id_target = reply_id.id_target
-
-        if undefined !== token ::
-          ctx.token = true === token ? random_id() : token
-        if undefined !== msgid :: ctx.msgid = msgid
-        if undefined !== trailer :: ctx.trailer = trailer
-      return merge
-
-    function send(body) ::
-      const obj = ctx; ctx = undefined
-      obj.transport = 'single'
-      obj.body = body
-      const handler = protocol.choose(obj)
-      return handler.send(chan, obj)
-
-    function multi(body) ::
-      const obj = ctx; ctx = undefined
-      obj.transport = 'multipart'
-      obj.body = body
-      const handler = protocol.choose(obj)
-      return handler.send(chan, obj)
-
-    function stream(body) ::
-      const obj = ctx; ctx = undefined
-      obj.transport = 'streaming'
-      const handler = protocol.choose(obj)
-      return handler.send(chan, obj)
+class ReplyTimeout extends Error ::

@@ -16,11 +16,11 @@ export default class Sink ::
     this.by_msgid = endpoint.bindStateMap()
     this.by_token = endpoint.bindReplyMap()
     return async pkt => ::
-      const entry = protocol[pkt.type]
-      if undefined === entry ::
+      const recv_msg = protocol[pkt.type]
+      if undefined === recv_msg ::
         return on_error @ false, @: endpoint, pkt
 
-      const msg = await entry.recv @ pkt, this
+      const msg = await recv_msg @ pkt, this
       if ! msg :: return msg
 
       try ::
