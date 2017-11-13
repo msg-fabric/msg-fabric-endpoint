@@ -7,8 +7,6 @@ export default function binary_protocol(protocols, shared) ::
   return bindTransports @ protocols
     0x10 // 0x1* — JSON header, binary body
     @{}
-      packBody(body) :: return asBuffer @ body
-
       get datagram() :: return this.direct
       direct: @{}
         t_send(chan, obj) ::

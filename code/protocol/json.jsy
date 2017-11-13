@@ -1,11 +1,12 @@
 export default function json_protocol(protocols, shared) ::
   const {bindTransports, createMultipart, createStreaming, packetParser} = shared
-  const {unpack_utf8, packPacketObj} = packetParser
+  const {pack_utf8, unpack_utf8, packPacketObj} = packetParser
 
   return bindTransports @ protocols
     0x00 // 0x0* — JSON header, JSON body; NDJSON streaming 
     @{}
-      packBody(body) :: return JSON.stringify(body)
+      packBody(body) ::
+        return pack_utf8 @ JSON.stringify(body)
 
       get datagram() :: return this.direct
       direct: @{}

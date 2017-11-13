@@ -1,7 +1,7 @@
 import framings from './framing.jsy'
 
 export default function(packetParser, random_id) ::
-  const {concatBuffers, pack_utf8, unpack_utf8} = packetParser
+  const {asBuffer, concatBuffers, pack_utf8, unpack_utf8} = packetParser
 
   return @: packetParser, random_id
     trailerAsJSON, trailerAsBuffer
@@ -58,7 +58,7 @@ export default function(packetParser, random_id) ::
   function bindTransports(protocols, highbits, transports) ::
     const packTrailer = transports.packTrailer || trailerAsBuffer
     const unpackTrailer = transports.unpackTrailer || trailerAsJSON
-    const packBody = transports.packBody
+    const packBody = transports.packBody || asBuffer
     const outbound = []
     outbound.choose = framings.choose
 
