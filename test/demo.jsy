@@ -1,7 +1,5 @@
 import TestHub from './_test_hub.jsy'
 
-main().catch @ console.error
-
 async function main() ::
   const hub = new TestHub()
 
@@ -11,6 +9,10 @@ async function main() ::
   async function ep_ping(ep, msg, pkt) ::
     if undefined === msg ::
       console.log @ 'PING initializeed', @: tgt_ping, tgt_pong
+      ep.recvStream = function() ::
+        return function (err, content, info) ::
+          if err :: console.log @ 'STREAM ERR', err, info, content
+          else :: console.log @ 'STREAM', content
 
       const token = 1942
       console.log @ 'PING sending "hello" with token ${token}'
@@ -20,7 +22,7 @@ async function main() ::
       return
 
     console.log()
-    console.log @ 'PING recv:', msg
+    console.log @ 'PING recv:', msg.info
     console.log()
 
   async function ep_pong(ep, msg, pkt) ::
@@ -31,8 +33,28 @@ async function main() ::
     console.log()
     console.log @ 'PONG recv:', msg
     console.log @ 'PONG sending "salut"'
-    ep.to(msg.info)
-      .with @: token: true
-      .send @: reply: 'salut'
-      //.multi @: reply: 'salut'
     console.log()
+
+    console.log @ 'INFO:', msg.info
+    const reply = ep.to(msg.info)
+    if 1 ::
+      reply.send @: reply: 'salut'
+    if 1 ::
+      reply.send @: reply: 'Salut! '.repeat(1200)
+      reply.send @: reply: 'ABCDEF '.repeat(1200)
+
+    if 1 ::
+      await sleep(10)
+      const out = reply.stream()
+      for let idx = 0; idx<5; idx++ ::
+        out.write @: idx, ts: new Date()
+        await sleep(10)
+      out.end @: idx: 'done', ts: new Date()
+
+function sleep(ms) ::
+  return new Promise @ resolve => setTimeout @ resolve, ms
+
+if module === require.main ::
+  main().catch @ console.error
+  process.on @ 'unhandledRejection', (reason, p) => ::
+    console.log @ 'Unhandled Rejection at:', p, 'reason:', reason

@@ -31,17 +31,19 @@ export const basic_framings = @:
       unpack_routing(obj.from_id, dv, offset)
 
   response: @:
-    size: 6, bits: 0x2, mask: 0x2
+    size: 8, bits: 0x2, mask: 0x2
     f_test(obj) :: return null != obj.msgid
 
     f_pack(obj, dv, offset) ::
       if ! obj.msgid :: throw new Error @ _err_msgid_required
       dv.setInt32 @ 0+offset, obj.msgid, little_endian
       dv.setInt16 @ 4+offset, 0|obj.seq_ack, little_endian
+      dv.setInt16 @ 6+offset, 0|obj.ack_flags, little_endian
 
     f_unpack(obj, dv, offset) ::
       obj.token = dv.getInt32 @ 0+offset, little_endian
       obj.seq_ack = dv.getInt16 @ 4+offset, little_endian
+      obj.ack_flags = dv.getInt16 @ 6+offset, little_endian
 
   datagram: @:
     size: 0, bits: 0x0, mask: 0xc
@@ -69,7 +71,7 @@ export const basic_framings = @:
       obj.transport = c_direct
 
   multipart: @:
-    size: 6, bits: 0x8, mask: 0xc
+    size: 8, bits: 0x8, mask: 0xc
     transport: c_multipart
     f_test(obj) ::
       return c_multipart === obj.transport
@@ -78,15 +80,17 @@ export const basic_framings = @:
     f_pack(obj, dv, offset) ::
       if ! obj.token :: throw new Error @ _err_token_required
       dv.setInt32 @ 0+offset, obj.token, little_endian
-      dv.setInt16 @ 4+offset, obj.seq || 1
+      dv.setInt16 @ 4+offset, obj.seq || 1, little_endian
+      dv.setInt16 @ 6+offset, 0|obj.seq_flags, little_endian
 
     f_unpack(obj, dv, offset) ::
       obj.msgid     = dv.getInt32 @ 0+offset, little_endian
-      obj.seq       = dv.getInt16 @ 4+offset
+      obj.seq       = dv.getInt16 @ 4+offset, little_endian
+      obj.seq_flags = dv.getInt16 @ 6+offset, little_endian
       obj.transport = c_multipart
 
   streaming: @:
-    size: 6, bits: 0xc, mask: 0xc
+    size: 8, bits: 0xc, mask: 0xc
     transport: c_streaming
     f_test(obj) ::
       return c_streaming === obj.transport
@@ -95,22 +99,24 @@ export const basic_framings = @:
     f_pack(obj, dv, offset) ::
       if ! obj.token :: throw new Error @ _err_token_required
       dv.setInt32 @ 0+offset, obj.token, little_endian
-      dv.setInt16 @ 4+offset, obj.seq||1
+      dv.setInt16 @ 4+offset, obj.seq||1, little_endian
+      dv.setInt16 @ 6+offset, 0|obj.seq_flags, little_endian
 
     f_unpack(obj, dv, offset) ::
-      obj.msgid = dv.getInt32 @ 0+offset, little_endian
-      obj.seq   = dv.getInt16 @ 4+offset, little_endian
+      obj.msgid     = dv.getInt32 @ 0+offset, little_endian
+      obj.seq       = dv.getInt16 @ 4+offset, little_endian
+      obj.seq_flags = dv.getInt16 @ 6+offset, little_endian
       obj.transport = c_streaming
 
 
 function bind_seq_next(offset, seq_pos) ::
   const seq_offset = seq_pos + offset
   seq_next.seq_offset = seq_offset
-  let seq = 2
+  let seq = 1
   return seq_next
 
-  function seq_next({flags, done}, dv) ::
-    if ! done ::
+  function seq_next({flags, fin}, dv) ::
+    if ! fin ::
       dv.setInt16 @ seq_offset, seq++, little_endian
       dv.setInt16 @ 2+seq_offset, 0|flags, little_endian
     else ::
@@ -197,7 +203,7 @@ function composeFramings() ::
     return @:
       bits, mask:0xf, size, op
       transport, parts
-      pack, unpack
+      pack, unpack, seq_next
 
 
     function pack(pkt_type, pkt_obj) ::
@@ -226,12 +232,13 @@ function composeFramings() ::
 
     function _bind_iterable(pkt_obj, buf_clone) ::
       const {type} = pkt_obj
-      const {id_router, id_target, ttl} = pkt_obj
+      const {id_router, id_target, ttl, token} = pkt_obj
       pkt_obj.next = next
 
       function next(options) ::
+        if null == options :: options = {}
         const header = buf_clone.slice()
         seq_next @ options, new DataView @ header
-        return @: done: false, value: @{} // pkt_obj
-          type, ttl, id_router, id_target, header
+        return @: done: !! options.fin, value: @{} // pkt_obj
+          id_router, id_target, type, ttl, token, header
 

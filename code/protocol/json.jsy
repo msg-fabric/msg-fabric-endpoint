@@ -1,40 +1,38 @@
 export default function json_protocol(shared) ::
-  const {createMultipart, createStreaming, packetParser} = shared
-  const {pack_utf8, unpack_utf8, packPacketObj} = packetParser
+  const {createMultipart, createStream} = shared
+  const {pack_utf8, unpack_utf8} = shared.packetParser
 
   return @{}
-    packBody(body) ::
-      return pack_utf8 @ JSON.stringify(body)
+    packBody
+    packStream(chunk, fragment_size) ::
+      return @[] packBody(chunk)
 
     get datagram() :: return this.direct
     direct: @{}
-      t_send(chan, obj) ::
-        const pkt = packPacketObj(obj)
-        return chan @ pkt
       t_recv(pkt, sink) ::
-        const body = JSON.parse @ pkt.body_utf8()
-        return @: body, info: pkt.info
+        const msg = JSON.parse @ pkt.body_utf8() || undefined
+        return sink.recvMsg @ msg, pkt.info
 
     multipart: @{}
-      t_send(chan, obj) ::
-        throw new Error @ 'TODO: split into packets…'
       t_recv(pkt, sink) ::
-        const feed = sink.stateFor @ pkt.msgid, createMultipart
-        let body = feed(pkt)
-        if undefined !== body ::
-          body = JSON.parse @ unpack_utf8 @ body
-          return @: body, info: feed.info
+        const feed = sink.stateFor @ pkt.info.msgid, createMultipart
+        const body_buf = feed(pkt)
+        if undefined !== body_buf ::
+          const msg = JSON.parse @ unpack_utf8(body_buf) || undefined
+          return sink.recvMsg @ msg, feed.info
 
     streaming: @{}
-      t_send(chan, obj) :: throw new Error @ 'TODO'
-      t_recv() ::
-        const feed = sink.stateFor @ pkt.msgid, createStreaming
-        let body = feed @ pkt, pkt_as_ndjson
-        if undefined !== body ::
-          body = JSON.parse @ unpack_utf8 @ body
-          return @: body, info: feed.info
+      mode: 'object'
+      t_recv(pkt, sink) ::
+        const feed = sink.stateFor @ pkt.info.msgid, createStream
+        const msg = feed(pkt, pkt_as_ndjson)
+        if undefined !== msg ::
+          return sink.recvMsg @ msg, feed.info
+
+  function packBody(body) ::
+    return pack_utf8 @ JSON.stringify(body)
 
 function pkt_as_ndjson(pkt) ::
-  return pkt.body_utf8().split(/\r|\n/)
+  return pkt.body_utf8().split(/\r|\n|\0/)
     .filter @ l=>l
     .map @ l=>JSON.parse(l)

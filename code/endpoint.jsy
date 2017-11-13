@@ -23,16 +23,38 @@ export default class Endpoint ::
       return msg_ctx.clone().with @ ...args
 
   createStateMap() :: return new Map()
-  bindStateMap() :: return this.createStateMap()
   createReplyMap() :: return new Map()
-  bindReplyMap() :: return this._by_token
 
-  initReplyToken(token, kind) ::
-    return x => x
-    return new Promise @ (resolve, reject) => ::
+  replyFor(token) ::
+    return this._by_token.get(token)
+
+  bindSink(sink) ::
+    return @{}
+      by_msgid: this.createStateMap()
+      recvMsg: (msg, info) => ::
+        msg = this.recvMsg(msg, info)
+        const reply = this.replyFor(info.token)
+        return undefined === reply
+          ? msg : reply(msg)
+      recvStream: msgid => this.recvStream(msgid)
+
+  recvMsg(msg, info) ::
+    return @{} msg, info
+  recvStream(msgid) ::
+    console.warn @ `Unhandle recv stream: ${msgid}`
+    //return function (err, content, info) ::
+
+  initReplySend(token, msg_ctx) ::
+    return this.initTokenPromise @ token, msg_ctx.ms_timeout
+  initReplyStream(token, msg_ctx) ::
+    return this.initTokenPromise @ token, msg_ctx.ms_timeout
+
+  initReplyPromise(token, ms_timeout) ::
+    const ans = new Promise @ (resolve, reject) => ::
       this._by_token.set @ token, resolve
-      setTimeout @ timeout, this._ms_timeout
-      function timeout() ::
-        () => reject @ new ReplyTimeout
+      if ms_timeout ::
+        setTimeout @ timeout, ms_timeout
+        function timeout() :: reject @ new ReplyTimeout
+    return () => ans
 
 class ReplyTimeout extends Error ::

@@ -1,90 +1,171 @@
 import framings from './framing.jsy'
 
-export default function(packetParser, random_id) ::
-  const {asBuffer, concatBuffers, pack_utf8, unpack_utf8} = packetParser
+export default function(packetParser, random_id, fragment_size) ::
+  const {concatBuffers, packPacketObj, pack_utf8, unpack_utf8} = packetParser
+  fragment_size = Number(fragment_size || 8000)
+  if 1024 > fragment_size || 65000 < fragment_size ::
+    throw new Error @ `Invalid fragment size: ${fragment_size}`
 
   return @: packetParser, random_id
-    createMultipart, createStreaming
+    createMultipart, createStream, packetFragments
     bindTransports
 
+
+
   function createMultipart(msgid, sink) ::
-    let parts = [], last = false
+    let parts = [], fin = false
 
     return function feed(pkt) ::
-      const seq = body.seq
-      if seq < 0 :: last = true; seq = -seq
+      let seq = pkt.info.seq
+      if seq < 0 :: fin = true; seq = -seq
       parts[seq-1] = pkt.body_buffer()
 
-      if ! last :: return
+      if ! fin :: return
       if parts.includes @ undefined :: return
+      feed.info = pkt.info
 
       const res = concatBuffers(parts)
       parts = null
       return res
 
-  function createStreaming(msgid, sink) ::
-    let next=1, last = false
+  function createStream(msgid, sink) ::
+    let next=1, fin = false
+    const callback = sink.recvStream(msgid)
+    if null == callback ::
+      return function() {} // noop
 
     return function feed(pkt, as_content) ::
-      const seq = body.seq
-      if seq < 0 :: last = true; seq = -seq
-      if next == seq ::
-        next++
-      else if next !== 'invalid' ::
+      let seq = pkt.info.seq
+      if seq < 0 :: fin = true; seq = -seq
+      if next === seq :: next++
+      else if next === 'invalid' :: return
+      else ::
         next = 'invalid'
         const err = new Error @ `Packet out of sequence`
-        return callback @ err, {pkt}
-      else return
+        return callback @ err, null, pkt
 
       let body
       try ::
         body = undefined !== as_content
           ? as_content(pkt) : body.body_buffer()
       catch err ::
-        return callback @ err, {pkt}
+        return callback @ err, null, pkt
 
-      return callback @ null, {body, pkt}
+      return callback @ null, body, pkt
 
-  function bindTransports(inbound, highbits, transports) ::
-    const packBody = transports.packBody || asBuffer
+  function * packetFragments(buf, next_hdr, fin) ::
+    if null == buf ::
+      const obj = next_hdr({fin})
+      yield obj
+      return
+
+    let i = 0, lastInner = buf.byteLength - fragment_size;
+    while i < lastInner ::
+      const i0 = i
+      i += fragment_size
+
+      const obj = next_hdr()
+      obj.body = buf.slice(i0, i)
+      yield obj
+
+    ::
+      const obj = next_hdr({fin})
+      obj.body = buf.slice(i)
+      yield obj
+
+
+
+  function bindTransportImpls(inbound, highbits, transports) ::
     const outbound = []
     outbound.choose = framings.choose
 
     for const frame of framings ::
       const impl = frame ? transports[frame.transport] : null
-      if impl ::
-        _bind_frame_impl @ frame, impl
+      if ! impl :: continue
 
-    return @: outbound
-      send(chan, obj, body) ::
-        obj.body = packBody(body)
-        const send = outbound.choose(obj)
-        return send @ chan, obj
-
-      stream(chan, obj) ::
-        obj.transport = 'streaming'
-        const stream = outbound.choose(obj)
-        return stream @ chan, obj
-
-
-    function _bind_frame_impl(frame, impl) ::
       const pkt_type = highbits | frame.bits
-      const {t_send, t_recv} = impl
+      const {t_recv} = impl
 
-      function send(chan, obj) ::
+      function pack_hdr(obj) ::
         frame.pack(pkt_type, obj)
-        return t_send(chan, obj)
+        return obj
 
-      function recv(pkt, sink) ::
+      function recv_msg(pkt, sink) ::
         frame.unpack(pkt)
         return t_recv(pkt, sink)
 
-      send.pkt_type = recv.pkt_type = pkt_type
-      outbound[frame.bits] = send
-      inbound[pkt_type] = recv
+      pack_hdr.pkt_type = recv_msg.pkt_type = pkt_type
+      outbound[frame.bits] = pack_hdr
+      inbound[pkt_type] = recv_msg
 
       if 'production' !== process.env.NODE_ENV ::
-        const op = send.op = recv.op = frame.op
-        Object.defineProperty @ send, 'name', @{} value: `send «${op}»`
-        Object.defineProperty @ recv, 'name', @{} value: `recv «${op}»`
+        const op = pack_hdr.op = recv_msg.op = frame.op
+        Object.defineProperty @ pack_hdr, 'name', @{} value: `pack_hdr «${op}»`
+        Object.defineProperty @ recv_msg, 'name', @{} value: `recv_msg «${op}»`
 
+    return outbound
+
+
+  function bindTransports(inbound, highbits, transports) ::
+    const packBody = transports.packBody
+    const packStream = transports.packStream
+    const outbound = bindTransportImpls(inbound, highbits, transports)
+    const stream = ! transports.streaming ? null :
+      'object' === transports.streaming.mode
+        ? bind_stream @ msend_objects
+        : bind_stream @ msend_bytes
+
+    return @{} outbound, send, stream
+
+    function send(chan, obj, body) ::
+      body = packBody(body)
+      if fragment_size < body.byteLength ::
+        if ! obj.token :: obj.token = random_id()
+        const msend = msend_bytes('multipart', chan, obj)
+        return msend @ true, body
+
+      obj.transport = 'single'
+      obj.body = body
+      const pack_hdr = outbound.choose(obj)
+      const pkt = packPacketObj @ pack_hdr(obj)
+      return chan @ pkt
+
+    function msend_bytes(transport, chan, obj) ::
+      obj.transport = transport
+      const pack_hdr = outbound.choose(obj)
+      let {next} = pack_hdr(obj)
+      return function (fin, body) ::
+        if null === next ::
+          throw new Error @ 'Write after end'
+        let res
+        for const obj of packetFragments @ body, next, fin ::
+          const pkt = packPacketObj @ obj
+          res = chan @ pkt
+        if fin :: next = null
+        return res
+
+    function msend_objects(transport, chan, obj) ::
+      obj.transport = transport
+      const pack_hdr = outbound.choose(obj)
+      let {next} = pack_hdr(obj)
+      return function (fin, body) ::
+        if null === next ::
+          throw new Error @ 'Write after end'
+        const obj = next({fin})
+        obj.body = body
+        const pkt = packPacketObj @ obj
+        if fin :: next = null
+        return chan @ pkt
+
+    function bind_stream(send_impl) ::
+      return function stream (chan, obj) ::
+        if ! obj.token :: obj.token = random_id()
+        const msend = send_impl('streaming', chan, obj)
+        write.write = write; write.end = end
+        return write
+
+        function write(chunk) ::
+          return msend @ false, packBody @ chunk
+
+        function end(chunk) ::
+          return msend @ true, packBody @ chunk

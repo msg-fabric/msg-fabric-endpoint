@@ -9,7 +9,7 @@ export default function init_protocol(packetParser, random_id) ::
 
   const inbound = []
   const json = shared.bindTransports @ inbound
-    0x00 // 0x0* — JSON body; NDJSON streaming 
+    0x00 // 0x0* — JSON body
     json_proto(shared)
 
   const binary = shared.bindTransports @ inbound
@@ -42,7 +42,7 @@ class MsgCtxBase ::
       return this._codec.send @ chan, obj, body
 
     const token = obj.token = this.random_id()
-    const reply = this.endpoint.initReplyToken(token, 'send')
+    const reply = this.endpoint.initReplySend(token, this)
     return reply @ this._codec.send @ chan, obj
 
   stream() ::
@@ -52,7 +52,7 @@ class MsgCtxBase ::
       return this._codec.stream @ chan, obj
 
     const token = obj.token = this.random_id()
-    const reply = this.endpoint.initReplyToken(token, 'stream')
+    const reply = this.endpoint.initReplyStream(token, this)
     return reply @ this._codec.stream @ chan, obj
 
   with(...args) ::
@@ -78,8 +78,7 @@ class MsgCtxBase ::
         ctx.id_router = reply_id.id_router
         ctx.id_target = reply_id.id_target
 
-      if undefined !== token ::
-        ctx.token = true === token ? this.random_id() : token
+      if undefined !== token :: ctx.token = token
       if undefined !== msgid :: ctx.msgid = msgid
 
     return this
@@ -108,3 +107,5 @@ class MsgCtxBase ::
     this.prototype._codec = msgCodecs.default
     return this
 
+Object.assign @ MsgCtxBase.prototype, @{}
+  ms_timeout: 5000

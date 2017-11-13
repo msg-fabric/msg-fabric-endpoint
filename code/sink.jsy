@@ -13,8 +13,7 @@ export default class Sink ::
 
   bindDispatch(endpoint, on_message, on_error) ::
     const protocol = this._protocol
-    this.by_msgid = endpoint.bindStateMap()
-    this.by_token = endpoint.bindReplyMap()
+    Object.assign @ this, endpoint.bindSink(this)
     return async pkt => ::
       const recv_msg = protocol[pkt.type]
       if undefined === recv_msg ::
@@ -31,11 +30,11 @@ export default class Sink ::
   stateFor(msgid, ifAbsent) ::
     let entry = this.by_msgid.get(msgid)
     if undefined === entry ::
+      if ! msgid ::
+        throw new Error @ `Invalid msgid: ${msgid}`
       if 'function' === typeof ifAbsent ::
         entry = ifAbsent(msgid, this)
       else entry = ifAbsent
       this.by_msgid.set @ msgid, entry
     return entry
 
-  replyFor(token) ::
-    return this.by_token.get(token)

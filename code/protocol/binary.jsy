@@ -1,31 +1,30 @@
 export default function binary_protocol(shared) ::
-  const {createMultipart, packetParser} = shared
-  const {asBuffer, packPacketObj} = packetParser
-
+  const {createMultipart, createStream} = shared
+  const {pack_utf8, unpack_utf8} = shared.packetParser
+  const {asBuffer} = shared.packetParser
   return @{}
+    packBody: asBuffer
+    packStream(chunk, fragment_size) ::
+      return @[] asBuffer(chunk)
+
     get datagram() :: return this.direct
     direct: @{}
-      t_send(chan, obj) ::
-        const pkt = packPacketObj(obj)
-        return chan @ pkt
       t_recv(pkt, sink) ::
-        const body = pkt.body_buffer()
-        return @: body, info: pkt.info
+        const msg = pkt.body_buffer()
+        return sink.recvMsg @ msg, pkt.info
 
     multipart: @{}
-      t_send(chan, obj) ::
-        throw new Error @ 'TODO: split into packets…'
       t_recv(pkt, sink) ::
-        const feed = sink.stateFor @ pkt.msgid, createMultipart
-        let body = feed(pkt)
-        if undefined !== body ::
-          return @: body, info: feed.info
+        const feed = sink.stateFor @ pkt.info.msgid, createMultipart
+        const msg = feed(pkt)
+        if undefined !== msg ::
+          return sink.recvMsg @ msg, feed.info
 
     streaming: @{}
-      t_send() :: throw new Error @ 'TODO'
+      mode: 'bytes'
       t_recv(pkt, sink) ::
-        const feed = sink.stateFor @ pkt.msgid, createStreaming
-        let body = feed(pkt)
-        if undefined !== body ::
-          return @: body, info: feed.info
+        const feed = sink.stateFor @ pkt.info.msgid, createStream
+        const msg = feed(pkt)
+        if undefined !== msg ::
+          return sink.recvMsg @ msg, feed.info
 
