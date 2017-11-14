@@ -55,6 +55,9 @@ export default class Endpoint ::
       if ms_timeout ::
         setTimeout @ timeout, ms_timeout
         function timeout() :: reject @ new ReplyTimeout
-    return () => ans
+
+    return sent => ::
+      ans.sent = sent
+      return ans
 
 class ReplyTimeout extends Error ::

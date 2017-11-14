@@ -134,13 +134,13 @@ export default function(packetParser, random_id, fragment_size) ::
       obj.transport = transport
       const pack_hdr = outbound.choose(obj)
       let {next} = pack_hdr(obj)
-      return function (fin, body) ::
+      return async function (fin, body) ::
         if null === next ::
           throw new Error @ 'Write after end'
         let res
         for const obj of packetFragments @ body, next, fin ::
           const pkt = packPacketObj @ obj
-          res = chan @ pkt
+          res = await chan @ pkt
         if fin :: next = null
         return res
 
@@ -165,7 +165,11 @@ export default function(packetParser, random_id, fragment_size) ::
         return write
 
         function write(chunk) ::
-          return msend @ false, packBody @ chunk
+          return chunk != null
+            ? msend @ false, packBody @ chunk
+            : msend @ true
 
         function end(chunk) ::
-          return msend @ true, packBody @ chunk
+          return chunk != null
+            ? msend @ true, packBody @ chunk
+            : msend @ true
