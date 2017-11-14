@@ -1,0 +1,47 @@
+import framings from './framing.jsy'
+
+export default function control_protocol(inbound, high, shared) ::
+  const {random_id} = shared
+  const {packPacketObj} = shared.packetParser
+
+  const ping_frame = framings.choose @: from_id: true, token: true, transport: 'direct'
+  const pong_frame = framings.choose @: msgid: true, transport: 'datagram'
+
+  const pong_type = high|0xe
+  inbound[pong_type] = recv_pong
+  const ping_type = high|0xf
+  inbound[high|0xf] = recv_ping
+
+  return @{} send:ping, ping
+
+  function ping(chan, obj) ::
+    if ! obj.token ::
+      obj.token = random_id()
+    obj.body = JSON.stringify @:
+      op: 'ping'
+      ts0: new Date()
+    ping_frame.pack(ping_type, obj)
+    const pkt = packPacketObj @ obj
+    return chan @ pkt
+
+  function recv_ping(pkt, sink, router) ::
+    ping_frame.unpack(pkt)
+    const {from_id, msgid} = pkt.info
+    const {id_router, id_target} = from_id
+    const obj = @{} id_router, id_target, msgid
+    pong @ router, obj, pkt.body_json()
+
+  function pong(router, obj, body) ::
+    body.op = 'pong'
+    body.ts1 = new Date()
+    obj.body = JSON.stringify(body)
+
+    pong_frame.pack(pong_type, obj)
+    const pkt = packPacketObj @ obj
+    return router.dispatch @ [pkt]
+
+  function recv_pong(pkt, sink) ::
+    pong_frame.unpack(pkt)
+    pkt.body = pkt.body_json()
+    return sink.recvControl(pkt, pkt.info)
+

@@ -83,19 +83,20 @@ export default function(packetParser, random_id, fragment_size) ::
       const impl = frame ? transports[frame.transport] : null
       if ! impl :: continue
 
-      const pkt_type = highbits | frame.bits
+      const {bits, pack, unpack} = frame
+      const pkt_type = highbits | bits
       const {t_recv} = impl
 
       function pack_hdr(obj) ::
-        frame.pack(pkt_type, obj)
+        pack(pkt_type, obj)
         return obj
 
       function recv_msg(pkt, sink) ::
-        frame.unpack(pkt)
+        unpack(pkt)
         return t_recv(pkt, sink)
 
       pack_hdr.pkt_type = recv_msg.pkt_type = pkt_type
-      outbound[frame.bits] = pack_hdr
+      outbound[bits] = pack_hdr
       inbound[pkt_type] = recv_msg
 
       if 'production' !== process.env.NODE_ENV ::
@@ -115,7 +116,7 @@ export default function(packetParser, random_id, fragment_size) ::
         ? bind_stream @ msend_objects
         : bind_stream @ msend_bytes
 
-    return @{} outbound, send, stream
+    return @{} send, stream
 
     function send(chan, obj, body) ::
       body = packBody(body)

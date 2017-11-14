@@ -19,6 +19,9 @@ async function main() ::
       ep.to(tgt_pong)
         .with @: token, trailer: {awesome: true}
         .send @: say: 'hello'
+
+      ep.to(tgt_pong).ping()
+        .then @ ans => console.log("GOT CONTROL PONG:", ans)
       return
 
     console.log()

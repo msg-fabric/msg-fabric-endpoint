@@ -14,12 +14,12 @@ export default class Sink ::
   bindDispatch(endpoint, on_message, on_error) ::
     const protocol = this._protocol
     Object.assign @ this, endpoint.bindSink(this)
-    return async pkt => ::
+    return async (pkt, router) => ::
       const recv_msg = protocol[pkt.type]
       if undefined === recv_msg ::
         return on_error @ false, @: endpoint, pkt
 
-      const msg = await recv_msg @ pkt, this
+      const msg = await recv_msg @ pkt, this, router
       if ! msg :: return msg
 
       try ::
