@@ -35,25 +35,20 @@ class MsgCtxBase ::
   static from(endpoint, resolveRoute) ::
     return new this @ endpoint, resolveRoute
 
-  send(body) ::
+
+  send(...args) :: return this.invoke @ 'send', ...args
+  stream(...args) :: return this.invoke @ 'stream', ...args
+
+  invoke(key, ...args) ::
     const obj = Object.assign @ {}, this.ctx
     const chan = this.resolveRoute(obj.id_router)
     if true !== obj.token ::
-      return this._codec.send @ chan, obj, body
+      return this._codec[key] @ chan, obj, ...args
 
     const token = obj.token = this.random_id()
-    const reply = this.endpoint.initReplySend(token, this)
-    return reply @ this._codec.send @ chan, obj
+    const reply = this.endpoint.initReply(token, this, key)
+    return reply @ this._codec[key] @ chan, obj, ...args
 
-  stream() ::
-    const obj = Object.assign @ {}, this.ctx
-    const chan = this.resolveRoute(obj.id_router)
-    if true !== obj.token ::
-      return this._codec.stream @ chan, obj
-
-    const token = obj.token = this.random_id()
-    const reply = this.endpoint.initReplyStream(token, this)
-    return reply @ this._codec.stream @ chan, obj
 
   with(...args) ::
     const ctx = this.ctx
