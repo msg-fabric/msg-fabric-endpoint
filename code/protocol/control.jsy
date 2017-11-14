@@ -18,8 +18,7 @@ export default function control_protocol(inbound, high, shared) ::
     if ! obj.token ::
       obj.token = random_id()
     obj.body = JSON.stringify @:
-      op: 'ping'
-      ts0: new Date()
+      op: 'ping', ts0: new Date()
     ping_frame.pack(ping_type, obj)
     const pkt = packPacketObj @ obj
     return chan @ pkt
@@ -28,13 +27,14 @@ export default function control_protocol(inbound, high, shared) ::
     ping_frame.unpack(pkt)
     const {from_id, msgid} = pkt.info
     const {id_router, id_target} = from_id
+    const {ts0} = pkt.body = pkt.body_json()
     const obj = @{} id_router, id_target, msgid
-    pong @ router, obj, pkt.body_json()
+    pong @ router, obj, ts0
+    return sink.recvControl(pkt, pkt.info)
 
-  function pong(router, obj, body) ::
-    body.op = 'pong'
-    body.ts1 = new Date()
-    obj.body = JSON.stringify(body)
+  function pong(router, obj, ts0) ::
+    obj.body = JSON.stringify @:
+      op: 'pong', ts0, ts1: new Date()
 
     pong_frame.pack(pong_type, obj)
     const pkt = packPacketObj @ obj
