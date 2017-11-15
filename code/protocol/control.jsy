@@ -5,7 +5,7 @@ export default function control_protocol(inbound, high, shared) ::
   const {packPacketObj} = shared.packetParser
 
   const ping_frame = framings.choose @: from_id: true, token: true, transport: 'direct'
-  const pong_frame = framings.choose @: msgid: true, transport: 'datagram'
+  const pong_frame = framings.choose @: from_id: true, msgid: true, transport: 'datagram'
 
   const pong_type = high|0xe
   inbound[pong_type] = recv_pong
@@ -25,16 +25,17 @@ export default function control_protocol(inbound, high, shared) ::
 
   function recv_ping(pkt, sink, router) ::
     ping_frame.unpack(pkt)
-    const {from_id, msgid} = pkt.info
-    const {id_router, id_target} = from_id
-    const {ts0} = pkt.body = pkt.body_json()
-    const obj = @{} id_router, id_target, msgid
-    pong @ router, obj, ts0
+    pkt.body = pkt.body_json()
+    _send_pong @ pkt.body, pkt, sink, router
     return sink.recvCtrl(pkt.body, pkt.info)
 
-  function pong(router, obj, ts0) ::
-    obj.body = JSON.stringify @:
-      op: 'pong', ts0, ts1: new Date()
+  function _send_pong({ts0}, pkt_ping, sink, router) ::
+    const {msgid, from_id:r_id} = pkt_ping.info
+    const {id_router, id_target} = r_id
+    const obj = @{} id_router, id_target
+      from_id: sink.from_id, msgid
+      body: JSON.stringify @:
+        op: 'pong', ts0, ts1: new Date()
 
     pong_frame.pack(pong_type, obj)
     const pkt = packPacketObj @ obj
