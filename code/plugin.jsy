@@ -44,33 +44,26 @@ export default function(plugin_options) ::
       function source() ::
         return new SourceEndpoint(null, hub)
 
-      function endpoint(on_message, on_error) ::
-        if 'function' !== typeof on_message ::
-          throw new TypeError @ `Expected 'on_message' function`
-        if 'function' !== typeof on_error ::
-          on_error = default_on_error
-          if 'function' !== typeof on_error ::
-            throw new TypeError @ `Expected 'on_error' function`
-
+      function endpoint(on_init) ::
         const id_target = random_id()
         const ep = new Endpoint(id_target, hub)
 
-        Sink.register @ ep, @{}
-          hub, id_target, on_message, on_error
+        const target = on_init(ep)
+        const on_msg = (target.on_msg || target).bind(target)
+        const on_error = (target.on_error || default_on_error).bind(target)
 
-        const ready = Promise.resolve(ep).then(on_message)
-        ready.catch(on_error)
+        Sink.register @ ep, @{}
+          hub, id_target, on_msg, on_error
+
+        if target.on_ready ::
+          Promise.resolve(target).then @
+            target => target.on_ready()
 
         return Object.create @ endpoint_target_api, @:
-          ready: @{} value: ready
           id_router: @{} enumerable: true, value: hub.router.id_self
           id_target: @{} enumerable: true, value: id_target
 
 const endpoint_target_api = @:
   valueOf() :: return 0 | this.id_target
   inspect() :: return `«Endpoint Target ${this.id_target}»`
-
-  then(fa, fb) :: return this.ready.then(fa, fb)
-  catch(fn) :: return this.ready.catch(fn)
-  finally(fn) :: return this.ready.finally(fn)
 

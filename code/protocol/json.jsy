@@ -15,19 +15,17 @@ export default function json_protocol(shared) ::
 
     multipart: @{}
       t_recv(pkt, sink) ::
-        const feed = sink.stateFor @ pkt, createMultipart
-        const body_buf = feed(pkt)
+        const state = sink.stateFor @ pkt, createMultipart
+        const body_buf = state.feed(pkt)
         if undefined !== body_buf ::
           const msg = JSON.parse @ unpack_utf8(body_buf) || undefined
-          return sink.recvMsg @ msg, feed.info
+          return sink.recvMsg @ msg, state.info
 
     streaming: @{}
       mode: 'object'
       t_recv(pkt, sink) ::
-        const feed = sink.stateFor @ pkt, createStream
-        const msg = feed(pkt, pkt_as_ndjson)
-        if undefined !== msg ::
-          return sink.recvMsg @ msg, feed.info
+        const state = sink.stateFor @ pkt, createStream
+        return state.feed(pkt, pkt_as_ndjson)
 
   function packBody(body) ::
     return pack_utf8 @ JSON.stringify(body)

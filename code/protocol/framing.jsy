@@ -80,7 +80,9 @@ export const basic_framings = @:
     f_pack(obj, dv, offset) ::
       if ! obj.token :: throw new Error @ _err_token_required
       dv.setInt32 @ 0+offset, obj.token, little_endian
-      dv.setInt16 @ 4+offset, obj.seq || 1, little_endian
+      if true == obj.seq :: // use seq_next
+        dv.setInt16 @ 4+offset, 0, little_endian
+      else dv.setInt16 @ 4+offset, 0|obj.seq, little_endian
       dv.setInt16 @ 6+offset, 0|obj.seq_flags, little_endian
 
     f_unpack(obj, dv, offset) ::
@@ -99,7 +101,9 @@ export const basic_framings = @:
     f_pack(obj, dv, offset) ::
       if ! obj.token :: throw new Error @ _err_token_required
       dv.setInt32 @ 0+offset, obj.token, little_endian
-      dv.setInt16 @ 4+offset, obj.seq||1, little_endian
+      if true == obj.seq ::
+        dv.setInt16 @ 4+offset, 0, little_endian // use seq_next
+      else dv.setInt16 @ 4+offset, 0|obj.seq, little_endian
       dv.setInt16 @ 6+offset, 0|obj.seq_flags, little_endian
 
     f_unpack(obj, dv, offset) ::

@@ -6,26 +6,26 @@ export default class Sink ::
 
   static register(endpoint, kw_args) ::
     return new this().register(endpoint, kw_args)
-  register(endpoint, {hub, id_target, on_message, on_error}) ::
+  register(endpoint, {hub, id_target, on_msg, on_error}) ::
     hub.router.registerTarget @ id_target,
-      this.bindDispatch @ endpoint, on_message, on_error
+      this.bindDispatch @ endpoint, on_msg, on_error
     return this
 
-  bindDispatch(endpoint, on_message, on_error) ::
+  bindDispatch(endpoint, on_msg, on_error) ::
     const protocol = this._protocol
     Object.assign @ this, endpoint.bindSink(this)
     return async (pkt, router) => ::
       const recv_msg = protocol[pkt.type]
       if undefined === recv_msg ::
-        return on_error @ false, @: endpoint, pkt
+        return on_error @ false, @: pkt
 
       const msg = await recv_msg @ pkt, this, router
       if ! msg :: return msg
 
       try ::
-        return await on_message @ endpoint, msg, pkt
+        return await on_msg @ msg, pkt
       catch err ::
-        return on_error @ err, @: endpoint, msg, pkt
+        return on_error @ err, @: msg, pkt
 
   stateFor(pkt, ifAbsent) ::
     const msgid = pkt.info.msgid

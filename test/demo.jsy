@@ -1,61 +1,78 @@
 import TestHub from './_test_hub.jsy'
 
+function debug(...args) :: console.log @ ...args
+
 async function main() ::
   const hub = new TestHub()
 
-  const tgt_ping = hub.endpoint @ ep_ping
-  const tgt_pong = hub.endpoint @ ep_pong
+  console.log()
+  const tgt_aaa = hub.endpoint @ ep_aaa
+  console.log @: tgt_aaa
 
-  async function ep_ping(ep, msg, pkt) ::
-    if undefined === msg ::
-      console.log @ 'PING initializeed', @: tgt_ping, tgt_pong
-      ep.recvStream = function(info) ::
-        console.log @ 'NEW STREAM:', info
-        return function (err, content, pkt) ::
-          if err ::
-            console.log @ 'STREAM ERR', err, pkt.info
-          else ::
-            console.log @ 'STREAM', content
+  console.log()
+  const tgt_bbb = hub.endpoint @ ep_bbb
+  console.log @: tgt_bbb
 
-      const token = 1942
-      console.log @ 'PING sending "hello" with token ${token}'
-      ep.to(tgt_pong)
-        .with @: token, trailer: {awesome: true}
-        .send @: say: 'hello'
+  console.log()
 
-      ep.to(tgt_pong).ping()
-        .then @ ans => console.log("GOT CONTROL PONG:", ans)
-      return
+  function ep_aaa(ep) ::
+    debug @ 'AAA initialize'
+    ep.recvCtrl = function(msg, info) ::
+      debug @ 'AAA CTRL', msg
+    ep.recvStream = function(info) ::
+      debug @ 'AAA RECV STREAM:', info
+      return @{}
+        on_data(data, pkt) :: debug @ 'STREAM', data
+        on_error(err, pkt) :: debug @ 'STREAM ERR', err, pkt.info
 
-    console.log()
-    console.log @ 'PING recv:', msg.info
-    console.log()
+    return @{}
+      on_ready() ::
+        debug @ 'AAA ready', @: tgt_aaa, tgt_bbb
 
-  async function ep_pong(ep, msg, pkt) ::
-    if undefined === msg ::
-      console.log @ 'PONG initializeed', @: tgt_ping, tgt_pong
-      return
+        const token = 1942
+        debug @ 'AAA sending "hello" with token ${token}'
+        ep.to(tgt_bbb)
+          .with @: token, trailer: {awesome: true}
+          .send @: say: 'hello'
 
-    console.log()
-    console.log @ 'PONG recv:', msg
-    console.log @ 'PONG sending "salut"'
-    console.log()
+        console.log @ 'SEND ping'
+        ep.to(tgt_bbb).ping()
+          .then @ ans => debug("AAA CTRL pong() reply:", ans.msg)
 
-    console.log @ 'INFO:', msg.info
-    const reply = ep.to(msg.info)
-    if 1 ::
-      reply.send @: reply: 'salut'
-    if 1 ::
-      reply.send @: reply: 'Salut! '.repeat(1200)
-      reply.send @: reply: 'ABCDEF '.repeat(1200)
+      on_msg(msg, pkt) ::
+        debug()
+        debug @ 'AAA recv:', msg.msg
+        debug()
 
-    if 1 ::
-      await sleep(10)
-      const out = reply.stream()
-      for let idx = 0; idx<5; idx++ ::
-        out.write @: idx, ts: new Date()
-        await sleep(10)
-      out.end @: idx: 'done', ts: new Date()
+  function ep_bbb(ep) ::
+    debug @ 'BBB initialize'
+    ep.recvCtrl = function(msg, info) ::
+      debug @ 'BBB CTRL', msg
+
+    return @{}
+      on_ready() ::
+        debug @ 'BBB ready', @: tgt_aaa, tgt_bbb
+
+      async on_msg(msg, pkt) ::
+        debug()
+        debug @ 'BBB recv:', msg.msg
+        debug()
+
+        const reply = ep.to(msg.info)
+        if 1 ::
+          reply.send @: reply: 'salut'
+
+        if 1 ::
+          reply.send @: reply: 'Salut! '.repeat(1200)
+          reply.send @: reply: 'ABCDEF '.repeat(1200)
+
+        if 1 ::
+          await sleep(10)
+          const out = reply.stream({aStream: true})
+          for let idx = 0; idx<5; idx++ ::
+            out.write @: idx, ts: new Date()
+            await sleep(10)
+          out.end @: idx: 'done', ts: new Date()
 
 function sleep(ms) ::
   return new Promise @ resolve => setTimeout @ resolve, ms

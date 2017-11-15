@@ -32,27 +32,40 @@ export default class Endpoint ::
     return @{}
       by_msgid: this.createStateMap()
 
-      recvControl: (msg, info) => ::
+      recvCtrl: (msg, info) => ::
+        const rmsg = this.recvCtrl(msg, info)
+
         const reply = this.replyFor(info.token)
-        const rmsg = this.recvControl(msg, info)
-        return undefined === reply
-          ? rmsg : reply(rmsg || msg)
+        if undefined !== reply ::
+          Promise.resolve({rmsg, msg, info}).then(reply)
+        else return rmsg
 
       recvMsg: (msg, info) => ::
-        const reply = this.replyFor(info.token)
         const rmsg = this.recvMsg(msg, info)
-        return undefined === reply
-          ? rmsg : reply(rmsg || msg)
 
-      recvStream: info =>
-        this.recvStream(info)
+        const reply = this.replyFor(info.token)
+        if undefined !== reply ::
+          Promise.resolve({rmsg, msg, info}).then(reply)
+        else return rmsg
 
-  recvControl(msg, info) ::
+      recvStream: (msg, info) => ::
+        const rstream = this.recvStream(msg, info)
+        if rstream != null && 'function' !== typeof rstream.on_data ::
+          throw new TypeError @ `Expected object with on_data(data, pkt) function`
+
+        const reply = this.replyFor(info.token)
+        if undefined !== reply ::
+          Promise.resolve({rstream, msg, info}).then(reply)
+        return rstream
+
+  recvCtrl(msg, info) ::
   recvMsg(msg, info) ::
     return @{} msg, info
-  recvStream(info) ::
+  recvStream(msg, info) ::
     console.warn @ `Unhandle recv stream: ${info}`
-    //return function (err, content, pkt) ::
+    //return @{}
+    //  on_data(data, pkt) ::
+    //  on_error(err, pkt) ::
 
   initReply(token, msg_ctx, kind) ::
     return this.initReplyPromise @ token, msg_ctx.ms_timeout

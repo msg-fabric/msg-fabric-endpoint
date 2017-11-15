@@ -30,7 +30,7 @@ export default function control_protocol(inbound, high, shared) ::
     const {ts0} = pkt.body = pkt.body_json()
     const obj = @{} id_router, id_target, msgid
     pong @ router, obj, ts0
-    return sink.recvControl(pkt, pkt.info)
+    return sink.recvCtrl(pkt.body, pkt.info)
 
   function pong(router, obj, ts0) ::
     obj.body = JSON.stringify @:
@@ -43,5 +43,5 @@ export default function control_protocol(inbound, high, shared) ::
   function recv_pong(pkt, sink) ::
     pong_frame.unpack(pkt)
     pkt.body = pkt.body_json()
-    return sink.recvControl(pkt, pkt.info)
+    return sink.recvCtrl(pkt.body, pkt.info)
 

@@ -15,16 +15,18 @@ export default function binary_protocol(shared) ::
 
     multipart: @{}
       t_recv(pkt, sink) ::
-        const feed = sink.stateFor @ pkt, createMultipart
-        const msg = feed(pkt)
+        const state = sink.stateFor @ pkt, createMultipart
+        const msg = state.feed(pkt)
         if undefined !== msg ::
-          return sink.recvMsg @ msg, feed.info
+          return sink.recvMsg @ msg, state.info
 
     streaming: @{}
       mode: 'bytes'
       t_recv(pkt, sink) ::
-        const feed = sink.stateFor @ pkt, createStream
-        const msg = feed(pkt)
+        const state = sink.stateFor @ pkt, createStream
+        const msg = state.feed(pkt, pkt_buffer)
         if undefined !== msg ::
-          return sink.recvMsg @ msg, feed.info
+          return sink.recvMsg @ msg, state.info
+
+function pkt_buffer(pkt) :: return pkt.body_buffer()
 

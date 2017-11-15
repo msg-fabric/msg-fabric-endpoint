@@ -12,46 +12,68 @@ export default function(packetParser, random_id, fragment_size) ::
 
 
 
-  function createMultipart(/*pkt, sink*/) ::
+  function createMultipart(pkt, sink) ::
     let parts = [], fin = false
+    return @{} feed, info: pkt.info
 
-    return function feed(pkt) ::
+    function feed(pkt) ::
       let seq = pkt.info.seq
       if seq < 0 :: fin = true; seq = -seq
       parts[seq-1] = pkt.body_buffer()
 
       if ! fin :: return
       if parts.includes @ undefined :: return
-      feed.info = pkt.info
 
       const res = concatBuffers(parts)
       parts = null
       return res
 
   function createStream(pkt, sink) ::
-    let next=1, fin = false
-    const callback = sink.recvStream(pkt.info, pkt)
-    if null == callback ::
-      return function() {} // noop
+    let next=0, fin = false, rstream
+    const state = @{} feed: feed_init, info: pkt.info
+    return state
 
-    return function feed(pkt, as_content) ::
+    function on_error(err, pkt) ::
+      if undefined === rstream.on_error ::
+        return void console.warn @
+          `Error during stream.feed:`, err
+      return rstream.on_error @ err, pkt
+
+    function feed_init(pkt, as_content) ::
+      state.feed = feed_ignore
+
+      const msg = pkt.body_json()
+      rstream = sink.recvStream(msg, pkt.info)
+      if null == rstream :: return
+
+      try ::
+        if ! feed_seq(pkt) :: return
+        state.feed = feed_body
+      catch err ::
+        return on_error @ err, pkt
+
+      if 'function' === typeof rstream.on_init ::
+        return rstream.on_init(msg, pkt)
+      else return sink.recvMsg @ msg, pkt.info
+    
+    function feed_body(pkt, as_content) ::
+      let data
+      try ::
+        if ! feed_seq(pkt) :: return
+        data = as_content(pkt)
+      catch err ::
+        return on_error @ err, pkt
+      return rstream.on_data @ data, pkt
+
+    function feed_ignore() ::
+
+    function feed_seq(pkt) ::
       let seq = pkt.info.seq
       if seq < 0 :: fin = true; seq = -seq
-      if next === seq :: next++
-      else if next === 'invalid' :: return
-      else ::
-        next = 'invalid'
-        const err = new Error @ `Packet out of sequence`
-        return callback @ err, null, pkt
-
-      let body
-      try ::
-        body = undefined !== as_content
-          ? as_content(pkt) : body.body_buffer()
-      catch err ::
-        return callback @ err, null, pkt
-
-      return callback @ null, body, pkt
+      if next === seq :: return ++next
+      state.feed = feed_ignore
+      next = 'invalid'
+      throw new Error @ `Packet out of sequence`
 
   function * packetFragments(buf, next_hdr, fin) ::
     if null == buf ::
@@ -131,10 +153,15 @@ export default function(packetParser, random_id, fragment_size) ::
       const pkt = packPacketObj @ pack_hdr(obj)
       return chan @ pkt
 
-    function msend_bytes(transport, chan, obj) ::
+    function msend_bytes(transport, chan, obj, msg) ::
       obj.transport = transport
       const pack_hdr = outbound.choose(obj)
       let {next} = pack_hdr(obj)
+      if null !== msg ::
+        obj.body = msg
+        const pkt = packPacketObj @ obj
+        chan @ pkt
+
       return async function (fin, body) ::
         if null === next ::
           throw new Error @ 'Write after end'
@@ -145,10 +172,15 @@ export default function(packetParser, random_id, fragment_size) ::
         if fin :: next = null
         return res
 
-    function msend_objects(transport, chan, obj) ::
+    function msend_objects(transport, chan, obj, msg) ::
       obj.transport = transport
       const pack_hdr = outbound.choose(obj)
       let {next} = pack_hdr(obj)
+      if null !== msg ::
+        obj.body = msg
+        const pkt = packPacketObj @ obj
+        chan @ pkt
+
       return function (fin, body) ::
         if null === next ::
           throw new Error @ 'Write after end'
@@ -159,9 +191,12 @@ export default function(packetParser, random_id, fragment_size) ::
         return chan @ pkt
 
     function bind_stream(send_impl) ::
-      return function stream (chan, obj) ::
+      return function stream (chan, obj, msg) ::
         if ! obj.token :: obj.token = random_id()
-        const msend = send_impl('streaming', chan, obj)
+        if 'object' !== typeof msg ::
+          throw new TypeError @ `stream() requires a JSON seralizable msg for initial packet`
+        msg = JSON.stringify(msg)
+        const msend = send_impl('streaming', chan, obj, msg)
         write.write = write; write.end = end
         return write
 
