@@ -5,15 +5,15 @@ function debug(...args) :: console.log @ ...args
 async function main() ::
   const hub = new TestHub()
 
-  console.log()
+  debug()
   const tgt_aaa = hub.endpoint @ ep_aaa
-  console.log @: tgt_aaa
+  debug @: tgt_aaa
 
-  console.log()
+  debug()
   const tgt_bbb = hub.endpoint @ ep_bbb
-  console.log @: tgt_bbb
+  debug @: tgt_bbb
 
-  console.log()
+  debug()
 
   function ep_aaa(ep) ::
     debug @ 'AAA initialize'
@@ -37,7 +37,7 @@ async function main() ::
           .with @: token, trailer: {awesome: true}
           .send @: say: 'hello'
 
-        console.log @ 'SEND ping'
+        debug @ 'SEND ping'
         ep.to(tgt_bbb).ping()
           .then @ ans => debug("AAA CTRL pong() reply:", ans.msg)
 
@@ -62,6 +62,11 @@ async function main() ::
         debug()
 
         const reply = ep.to(msg.info)
+
+        if 0 ::
+          setTimeout @ ()=>null, 6000
+          reply.monitor().then @ monitor =>
+            console.log @ 'Monitor expired:', monitor
         if 1 ::
           reply.send @: reply: 'salut'
 

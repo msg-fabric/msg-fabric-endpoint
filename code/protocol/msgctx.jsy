@@ -11,12 +11,13 @@ export default class MsgCtxBase ::
     return new this @ endpoint, resolveRoute
 
 
-  ping() :: return this.codec('control', {token: true}).invoke @ 'ping'
+  ping(token=true) :: return this.codec('control', {token}).invoke @ 'ping'
   send(...args) :: return this.invoke @ 'send', ...args
   stream(...args) :: return this.invoke @ 'stream', ...args
 
   invoke(key, ...args) ::
     const obj = Object.assign @ {}, this.ctx
+    this.assertMonitor()
     const chan = this.resolveRoute(obj.id_router)
     if true !== obj.token ::
       return this._codec[key] @ chan, obj, ...args
@@ -60,6 +61,37 @@ export default class MsgCtxBase ::
   clone(...args) ::
     return Object.create @ this, @:
       ctx: @: value: Object.assign @ {}, this.ctx, ...args
+
+
+  assertMonitor() ::
+    if ! this.checkMonitor() ::
+      throw new Error @ `Target monitor expired`
+  checkMonitor() :: return true
+  monitor(options={}) ::
+    if true === options || false === options ::
+      options = @{} active: options
+
+    const monitor = this.endpoint.initMonitor(this.ctx.id_target)
+
+    const ts_duration = options.ts_duration || 5000
+    let ts_active = options.ts_active
+    if true === ts_active ::
+      ts_active = ts_duration/4
+
+    let tid
+    if options.active || ts_active ::
+      const ctrl = this.codec('control')
+      tid = setInterval @ ()=>ctrl.invoke('ping'), ts_active
+    else ::
+      tid = setInterval @ ()=>this.checkMonitor(), ts_duration/4
+    if tid && tid.unref :: tid.unref()
+
+    return new Promise @ (resolve, reject) => ::
+      const done = options.reject ? reject : resolve
+      this.checkMonitor = () =>
+        ts_duration > monitor.td()
+          ? true : (done(monitor), false)
+
 
 
   codec(msg_codec, ...args) ::

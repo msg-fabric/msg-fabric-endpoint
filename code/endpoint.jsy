@@ -17,47 +17,62 @@ export default class Endpoint ::
       from_id: @{} value: from_id, enumerable: true
       to: @{} value: message
       _by_token: @{} value: this.createReplyMap()
+      _by_traffic: @{} value: this.createTrafficMap()
 
     const msg_ctx = this.MsgCtx.from @ this, hub.router.resolveRoute
     function message(...args) ::
       return msg_ctx.clone().with @ ...args
 
-  createStateMap() :: return new Map()
-  createReplyMap() :: return new Map()
-
-  replyFor(token) ::
-    return this._by_token.get(token)
+  createMap() :: return new Map()
+  createStateMap() :: return this.createMap()
+  createReplyMap() :: return this.createMap()
+  createTrafficMap() :: return this.createMap()
 
   bindSink(sink) ::
+    const by_token = this._by_token
+    const by_traffic = this._by_traffic
+    const traffic = (from_id, traffic) => ::
+      const ts = Date.now()
+      if from_id ::
+        const t = by_traffic.get(from_id.id_target)
+        if undefined !== t :: t.ts = ts
+      this.recvTraffic(from_id, traffic, ts)
+
     return @{}
+      from_id: this.from_id
       by_msgid: this.createStateMap()
 
       recvCtrl: (msg, info) => ::
+        traffic(info.from_id, 'ctrl')
         const rmsg = this.recvCtrl(msg, info)
 
-        const reply = this.replyFor(info.token)
+        const reply = by_token.get(info.token)
         if undefined !== reply ::
           Promise.resolve({rmsg, msg, info}).then(reply)
         else return rmsg
 
       recvMsg: (msg, info) => ::
+        traffic(info.from_id, 'msg')
         const rmsg = this.recvMsg(msg, info)
 
-        const reply = this.replyFor(info.token)
+        const reply = by_token.get(info.token)
         if undefined !== reply ::
           Promise.resolve({rmsg, msg, info}).then(reply)
         else return rmsg
 
       recvStream: (msg, info) => ::
+        traffic(info.from_id, 'stream')
+        const rmsg = this.recvMsg(msg, info)
         const rstream = this.recvStream(msg, info)
         if rstream != null && 'function' !== typeof rstream.on_data ::
           throw new TypeError @ `Expected object with on_data(data, pkt) function`
 
-        const reply = this.replyFor(info.token)
+        const reply = by_token.get(info.token)
         if undefined !== reply ::
           Promise.resolve({rstream, msg, info}).then(reply)
         return rstream
 
+  recvTraffic(from_id, traffic, ts) ::
   recvCtrl(msg, info) ::
   recvMsg(msg, info) ::
     return @{} msg, info
@@ -70,11 +85,21 @@ export default class Endpoint ::
   initReply(token, msg_ctx, kind) ::
     return this.initReplyPromise @ token, msg_ctx.ms_timeout
 
+  initMonitor(id_target) ::
+    const key = id_target.id_target || id_target
+    let monitor = this._by_traffic.get @ key
+    if undefined === monitor ::
+      monitor = @{} id_target, ts: Date.now()
+        td() :: return Date.now() - this.ts
+      this._by_traffic.set @ key, monitor
+    return monitor
+
   initReplyPromise(token, ms_timeout) ::
     const ans = new Promise @ (resolve, reject) => ::
       this._by_token.set @ token, resolve
       if ms_timeout ::
-        setTimeout(timeout, ms_timeout).unref()
+        const tid = setTimeout(timeout, ms_timeout)
+        if tid.unref :: tid.unref()
         function timeout() :: reject @ new ReplyTimeout
 
     return sent => ::
