@@ -7,14 +7,26 @@ export default class Sink ::
   static register(endpoint, kw_args) ::
     return new this().register(endpoint, kw_args)
   register(endpoint, {hub, id_target, on_msg, on_error}) ::
+    const unregister = () => ::
+      hub.unregisterTarget(id_target) && this.shutdown()
+
     hub.router.registerTarget @ id_target,
-      this.bindDispatch @ endpoint, on_msg, on_error
+      this._bindDispatch @ endpoint, on_msg, on_error, unregister
     return this
 
-  bindDispatch(endpoint, on_msg, on_error) ::
+  _bindDispatch(endpoint, on_msg, on_error, unregister) ::
+    let alive = true
     const protocol = this._protocol
-    Object.assign @ this, endpoint.bindSink(this)
+    const isAlive = () => alive
+    const shutdown = () => ::
+      if alive :: unregister(); unregister = alive = false
+
+    Object.assign @ this, endpoint.bindSink(this), @{} isAlive, shutdown
+    Object.assign @ endpoint, @{} isAlive, shutdown
+
     return async (pkt, router) => ::
+      if false===alive || null==pkt :: return alive
+
       const recv_msg = protocol[pkt.type]
       if undefined === recv_msg ::
         return on_error @ false, @: pkt
