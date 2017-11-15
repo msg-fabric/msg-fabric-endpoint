@@ -9,10 +9,13 @@ async function main() ::
   async function ep_ping(ep, msg, pkt) ::
     if undefined === msg ::
       console.log @ 'PING initializeed', @: tgt_ping, tgt_pong
-      ep.recvStream = function() ::
-        return function (err, content, info) ::
-          if err :: console.log @ 'STREAM ERR', err, info, content
-          else :: console.log @ 'STREAM', content
+      ep.recvStream = function(info) ::
+        console.log @ 'NEW STREAM:', info
+        return function (err, content, pkt) ::
+          if err ::
+            console.log @ 'STREAM ERR', err, pkt.info
+          else ::
+            console.log @ 'STREAM', content
 
       const token = 1942
       console.log @ 'PING sending "hello" with token ${token}'

@@ -27,13 +27,14 @@ export default class Sink ::
       catch err ::
         return on_error @ err, @: endpoint, msg, pkt
 
-  stateFor(msgid, ifAbsent) ::
+  stateFor(pkt, ifAbsent) ::
+    const msgid = pkt.info.msgid
     let entry = this.by_msgid.get(msgid)
     if undefined === entry ::
       if ! msgid ::
         throw new Error @ `Invalid msgid: ${msgid}`
       if 'function' === typeof ifAbsent ::
-        entry = ifAbsent(msgid, this)
+        entry = ifAbsent(pkt, this)
       else entry = ifAbsent
       this.by_msgid.set @ msgid, entry
     return entry

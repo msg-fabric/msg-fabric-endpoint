@@ -15,7 +15,7 @@ export default function json_protocol(shared) ::
 
     multipart: @{}
       t_recv(pkt, sink) ::
-        const feed = sink.stateFor @ pkt.info.msgid, createMultipart
+        const feed = sink.stateFor @ pkt, createMultipart
         const body_buf = feed(pkt)
         if undefined !== body_buf ::
           const msg = JSON.parse @ unpack_utf8(body_buf) || undefined
@@ -24,7 +24,7 @@ export default function json_protocol(shared) ::
     streaming: @{}
       mode: 'object'
       t_recv(pkt, sink) ::
-        const feed = sink.stateFor @ pkt.info.msgid, createStream
+        const feed = sink.stateFor @ pkt, createStream
         const msg = feed(pkt, pkt_as_ndjson)
         if undefined !== msg ::
           return sink.recvMsg @ msg, feed.info

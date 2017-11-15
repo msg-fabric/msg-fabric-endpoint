@@ -12,7 +12,7 @@ export default function(packetParser, random_id, fragment_size) ::
 
 
 
-  function createMultipart(msgid, sink) ::
+  function createMultipart(/*pkt, sink*/) ::
     let parts = [], fin = false
 
     return function feed(pkt) ::
@@ -28,9 +28,9 @@ export default function(packetParser, random_id, fragment_size) ::
       parts = null
       return res
 
-  function createStream(msgid, sink) ::
+  function createStream(pkt, sink) ::
     let next=1, fin = false
-    const callback = sink.recvStream(msgid)
+    const callback = sink.recvStream(pkt.info, pkt)
     if null == callback ::
       return function() {} // noop
 

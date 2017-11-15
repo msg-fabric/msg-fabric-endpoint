@@ -31,22 +31,28 @@ export default class Endpoint ::
   bindSink(sink) ::
     return @{}
       by_msgid: this.createStateMap()
+
       recvControl: (msg, info) => ::
         const reply = this.replyFor(info.token)
-        if undefined !== reply ::
-          return reply(msg)
-      recvMsg: (msg, info) => ::
-        msg = this.recvMsg(msg, info)
-        const reply = this.replyFor(info.token)
+        const rmsg = this.recvControl(msg, info)
         return undefined === reply
-          ? msg : reply(msg)
-      recvStream: msgid => this.recvStream(msgid)
+          ? rmsg : reply(rmsg || msg)
 
+      recvMsg: (msg, info) => ::
+        const reply = this.replyFor(info.token)
+        const rmsg = this.recvMsg(msg, info)
+        return undefined === reply
+          ? rmsg : reply(rmsg || msg)
+
+      recvStream: info =>
+        this.recvStream(info)
+
+  recvControl(msg, info) ::
   recvMsg(msg, info) ::
     return @{} msg, info
-  recvStream(msgid) ::
-    console.warn @ `Unhandle recv stream: ${msgid}`
-    //return function (err, content, info) ::
+  recvStream(info) ::
+    console.warn @ `Unhandle recv stream: ${info}`
+    //return function (err, content, pkt) ::
 
   initReply(token, msg_ctx, kind) ::
     return this.initReplyPromise @ token, msg_ctx.ms_timeout
