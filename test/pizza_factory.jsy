@@ -1,0 +1,92 @@
+import TestHub from './_test_hub.jsy'
+
+const hub = new TestHub()
+
+const pizza_place = hub.endpoint @ ep => ::
+
+  const assemble = hub.endpoint @ ep => ::
+    return @{}
+      async on_msg({msg, info}) ::
+        console.log @ 'assemble msg', msg
+
+        const stg = ep.to(storage).withReply()
+
+        Promise.all @ Array.from @
+          msg.order.ingredients
+          async ingredient => ::
+            const {msg: res} = await stg.send @: ingredient
+            if res.hasOne :: return res.ingredient
+            else throw new Error @ `Out of "${ingredient}"`
+        .then @
+          ingredients => ::
+            ep.to(cook).send @:
+              order: msg.order
+
+          err => ::
+            ep.to(info).send @:
+              order: msg.order
+              canceled:true
+              reason: 'Out of ingredients'
+          
+      
+  const cook = hub.endpoint @ ep => ::
+    return @{}
+      on_msg({msg, info}) ::
+        console.log @ 'cook msg', msg
+        ep.to(qa).send @:
+          order: msg.order
+
+  const qa = hub.endpoint @ ep => ::
+    return @{}
+      on_msg({msg, info}) ::
+        console.log @ 'qa msg', msg
+        console.log @ "SWH", ep.to(delivery).send @:
+          order: msg.order
+
+  const delivery = hub.endpoint @ ep =>
+    ({msg, info}) => ::
+      console.log @ 'out for delivery', @# msg.order.address
+
+  const storage = hub.endpoint @ ep => ::
+    const freezer = @{}
+      bacon: 42
+      cheese: 10
+      sausage: 100
+      'thin crust': 20
+      'red sauce': 10
+      
+    return @{}
+      on_msg({msg, info}) ::
+        console.log @ 'storage msg', msg
+        const {ingredient} = msg
+        const hasOne = 0 < freezer[ingredient]--
+        
+        ep.to(info).send @: hasOne, ingredient
+          
+
+  return @{}
+    on_ready() ::
+      // This gets called after initialize. We can receive messages now, so set up what you need here.
+      console.log @ 'pizza_place on_ready'
+      
+      
+    on_msg({msg, info}) ::
+      console.log @ 'pizza_place msg', msg, msg.ingredients
+      if msg.ingredients ::
+        console.log @ 'sending to assembly', assemble
+        ep.to(assemble).send @: order: msg
+
+
+
+const customer_order = () => ::
+  hub.endpoint.source()
+    .to @ pizza_place
+    .send @: 
+      ingredients: @# 'sausage', 'bacon', 'cheese', 'red sauce', 'thin crust'
+      address: '123 2nd Ave North, Seattle, WA 98103'
+
+if module === require.main ::
+  customer_order()
+
+
+

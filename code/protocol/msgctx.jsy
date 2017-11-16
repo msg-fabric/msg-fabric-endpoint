@@ -20,11 +20,13 @@ export default class MsgCtxBase ::
     this.assertMonitor()
     const chan = this.resolveRoute(obj.id_router)
     if true !== obj.token ::
-      return this._codec[key] @ chan, obj, ...args
+      const sent = this._codec[key] @ chan, obj, ...args
+      return @{} sent
 
     const token = obj.token = this.random_id()
     const reply = this.endpoint.initReply(token, this, key)
-    return reply @ this._codec[key] @ chan, obj, ...args
+    const sent = this._codec[key] @ chan, obj, ...args
+    return reply @ sent
 
 
   with(...args) ::
