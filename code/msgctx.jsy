@@ -99,20 +99,28 @@ export default class MsgCtx ::
     if true === ts_active ::
       ts_active = ts_duration/4
 
-    let tid
-    if options.active || ts_active ::
-      const ctrl = this.codec('control')
-      tid = setInterval @ ()=>ctrl.invoke('ping'), ts_active
-    else ::
-      tid = setInterval @ ()=>this.checkMonitor(), ts_duration/4
-    if tid && tid.unref :: tid.unref()
-
-    return new Promise @ (resolve, reject) => ::
+    let checkMonitor
+    const promise = new Promise @ (resolve, reject) => ::
       const done = options.reject ? reject : resolve
-      this.checkMonitor = () =>
+      this.checkMonitor = checkMonitor = () =>
         ts_duration > monitor.td()
           ? true : (done(monitor), false)
 
+    let tid
+    const ts_interval = ts_active || ts_duration/4
+    if options.active || ts_active ::
+      const ctrl = this.codec('control')
+      const checkPing = () => ::
+        if ts_interval > monitor.td() ::
+          ctrl.invoke('ping')
+      tid = setInterval @ checkPing, ts_interval
+    else ::
+      tid = setInterval @ checkMonitor, ts_interval
+    if tid.unref :: tid.unref()
+    const clear = () => clearInterval(tid)
+
+    promise.then(clear, clear)
+    return promise
 
 
   codec(msg_codec, ...args) ::
