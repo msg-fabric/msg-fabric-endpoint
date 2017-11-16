@@ -17,8 +17,8 @@ function unpack_routing(obj, dv, offset) ::
   obj.id_target = dv.getInt32 @ 4+offset, little_endian
 
 
-export const basic_framings = @:
-  from_routing: @:
+export const basic_framings = @{}
+  from_routing: @{}
     size: 8, bits: 0x1, mask: 0x1
     f_test(obj) :: return null != obj.from_id
 
@@ -30,7 +30,7 @@ export const basic_framings = @:
         obj.from_id = {}
       unpack_routing(obj.from_id, dv, offset)
 
-  response: @:
+  response: @{}
     size: 8, bits: 0x2, mask: 0x2
     f_test(obj) :: return null != obj.msgid
 
@@ -45,7 +45,7 @@ export const basic_framings = @:
       obj.seq_ack = dv.getInt16 @ 4+offset, little_endian
       obj.ack_flags = dv.getInt16 @ 6+offset, little_endian
 
-  datagram: @:
+  datagram: @{}
     size: 0, bits: 0x0, mask: 0xc
     transport: c_datagram
     f_test(obj) ::
@@ -56,7 +56,7 @@ export const basic_framings = @:
     f_unpack(obj, dv, offset) ::
       obj.transport = c_datagram
 
-  direct: @:
+  direct: @{}
     size: 4, bits: 0x4, mask: 0xc
     transport: c_direct
     f_test(obj) ::
@@ -70,7 +70,7 @@ export const basic_framings = @:
       obj.msgid = dv.getInt32 @ 0+offset, little_endian
       obj.transport = c_direct
 
-  multipart: @:
+  multipart: @{}
     size: 8, bits: 0x8, mask: 0xc
     transport: c_multipart
     f_test(obj) ::
@@ -91,7 +91,7 @@ export const basic_framings = @:
       obj.seq_flags = dv.getInt16 @ 6+offset, little_endian
       obj.transport = c_multipart
 
-  streaming: @:
+  streaming: @{}
     size: 8, bits: 0xc, mask: 0xc
     transport: c_streaming
     f_test(obj) ::
@@ -132,24 +132,11 @@ export const framings = composeFramings()
 export default framings
 
 function composeFramings() ::
-  for const [name, f] of Object.entries(basic_framings) ::
+  for const f of Object.values(basic_framings) ::
     const {size, bits} = f, info = {size, bits}
-    if 'production' !== process.env.NODE_ENV ::
-      const op = `${name}[${f.size}]`
-      f.op = info.op = op
-      if f.f_pack ::
-        Object.assign @ f.f_pack, info
-        Object.defineProperty @ f.f_pack, 'name', @{} value: `f_pack «${op}»`
-      if f.f_unpack ::
-        Object.assign @ f.f_unpack, info
-        Object.defineProperty @ f.f_unpack, 'name', @{} value: `f_unpack «${op}»`
-      if f.f_test ::
-        Object.assign @ f.f_test, info
-        Object.defineProperty @ f.f_test, 'name', @{} value: `f_test «${op}»`
-    else ::
-      if f.f_pack :: f.f_pack.size = size
-      if f.f_unpack :: f.f_unpack.size = size
-      if f.f_test :: f.f_test.bits = bits
+    if f.f_pack :: f.f_pack.size = size
+    if f.f_unpack :: f.f_unpack.size = size
+    if f.f_test :: f.f_test.bits = bits
 
   const byBits = []
   for let bits=0; bits <= 0xf; bits++ ::
@@ -174,8 +161,6 @@ function composeFramings() ::
   function fold(r, f, ...args) ::
     const offset = 0|r.size
     fpk2.size = r.size + (0|f.size)
-    if 'production' !== process.env.NODE_ENV ::
-      fpk2.op = `${r.op}-${f.op}@${offset}`
     return fpk2
 
     function fpk2(obj, dv) ::
@@ -198,13 +183,7 @@ function composeFramings() ::
     const {transport} = parts.find(f=>f.transport)
     const {size, op} = pack_frames
 
-    if 'production' !== process.env.NODE_ENV ::
-      Object.defineProperty @ pack, 'name', @{} value: `pack «${op}»`
-      Object.defineProperty @ pack_frames, 'name', @{} value: `pack_frames «${op}»`
-      Object.defineProperty @ unpack, 'name', @{} value: `unpack «${op}»`
-      Object.defineProperty @ unpack_frames, 'name', @{} value: `unpack_frames «${op}»`
-
-    return @:
+    return @{}
       bits, mask:0xf, size, op
       transport, parts
       pack, unpack, seq_next
@@ -243,6 +222,6 @@ function composeFramings() ::
         if null == options :: options = {}
         const header = buf_clone.slice()
         seq_next @ options, new DataView @ header
-        return @: done: !! options.fin, value: @{} // pkt_obj
+        return @{} done: !! options.fin, value: @{} // pkt_obj
           id_router, id_target, type, ttl, token, header
 
