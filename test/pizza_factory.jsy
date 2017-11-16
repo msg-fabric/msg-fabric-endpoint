@@ -40,7 +40,7 @@ const pizza_place = hub.endpoint @ ep => ::
     return @{}
       on_msg({msg, info}) ::
         console.log @ 'qa msg', msg
-        console.log @ "SWH", ep.to(delivery).send @:
+        ep.to(delivery).send @:
           order: msg.order
 
   const delivery = hub.endpoint @ ep =>
