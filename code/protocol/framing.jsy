@@ -8,27 +8,21 @@ const c_streaming = 'streaming'
 const _err_msgid_required = `Response reqires 'msgid'`
 const _err_token_required = `Transport reqires 'token'`
 
-function pack_routing(obj, dv, offset) ::
-  dv.setInt32 @ 0+offset, 0|obj.id_router, little_endian
-  dv.setInt32 @ 4+offset, 0|obj.id_target, little_endian
-
-function unpack_routing(obj, dv, offset) ::
-  obj.id_router = dv.getInt32 @ 0+offset, little_endian
-  obj.id_target = dv.getInt32 @ 4+offset, little_endian
-
-
 export const basic_framings = @{}
   from_routing: @{}
     size: 8, bits: 0x1, mask: 0x1
     f_test(obj) :: return null != obj.from_id
 
     f_pack(obj, dv, offset) ::
-      pack_routing(obj.from_id, dv, offset)
+      const {from_id} = obj
+      dv.setInt32 @ 0+offset, 0|from_id.id_router, little_endian
+      dv.setInt32 @ 4+offset, 0|from_id.id_target, little_endian
 
     f_unpack(obj, dv, offset) ::
-      if undefined === obj.from_id ::
-        obj.from_id = {}
-      unpack_routing(obj.from_id, dv, offset)
+      const from_id = undefined === obj.from_id
+        ? obj.from_id = {} : obj.from_id
+      from_id.id_router = dv.getInt32 @ 0+offset, little_endian
+      from_id.id_target = dv.getInt32 @ 4+offset, little_endian
 
   response: @{}
     size: 8, bits: 0x2, mask: 0x2
