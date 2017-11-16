@@ -17,14 +17,14 @@ export default [
     ],
     sourcemap, external, plugins },
 
-	{ input: 'code/nodejs.jsy',
+	{ input: 'code/index.nodejs.jsy',
 		output: [
       { file: `dist/nodejs.js`, format: 'cjs' },
       { file: `dist/nodejs.mjs`, format: 'es' },
     ],
     sourcemap, external, plugins: plugins_prod },
 
-	{ input: 'code/browser.jsy',
+	{ input: 'code/index.browser.jsy',
     name: 'msg-fabric-sink',
 		output: [
       { file: `dist/browser.js`, format: 'cjs' },

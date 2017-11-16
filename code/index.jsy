@@ -1,5 +1,5 @@
 export * from './protocol/index.jsy'
 export * from './sink.jsy'
-export {default as endpoint_nodejs} from './nodejs.jsy'
-export {default as endpoint_browser} from './browser.jsy'
+export {default as endpoint_nodejs} from './index.nodejs.jsy'
+export {default as endpoint_browser} from './index.browser.jsy'
 export {default as default, default as endpoint} from './plugin.jsy'
