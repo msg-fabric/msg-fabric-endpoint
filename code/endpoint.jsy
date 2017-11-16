@@ -27,10 +27,10 @@ export default class Endpoint ::
       const ts = Date.now()
       if from_id ::
         const t = by_traffic.get(from_id.id_target)
-        if undefined !== t :: t.ts = ts
+        if undefined !== t ::
+          t.ts = t[`ts_${traffic}`] = ts
       this.recvTraffic(from_id, traffic, ts)
 
-    const {id_target, id_router} = this.from_id
     return @{}
       from_id: this.from_id
       by_msgid: this.createStateMap()
@@ -50,19 +50,22 @@ export default class Endpoint ::
 
         const reply = by_token.get(info.token)
         if undefined !== reply ::
-          Promise.resolve({rmsg, msg, info}).then(reply)
+          Promise.resolve(rmsg).then(reply)
         else return rmsg
 
       recvStream: (msg, info) => ::
         traffic(info.from_id, 'stream')
-        const rmsg = this.recvMsg(msg, info)
         const rstream = this.recvStream(msg, info)
+        const rmsg = rstream.on_init
+          ? rstream.on_init(msg, info)
+          : this.recvMsg(msg, info)
+
         if rstream != null && 'function' !== typeof rstream.on_data ::
           throw new TypeError @ `Expected object with on_data(data, pkt) function`
 
         const reply = by_token.get(info.token)
         if undefined !== reply ::
-          Promise.resolve({rstream, msg, info}).then(reply)
+          Promise.resolve(rmsg).then(reply)
         return rstream
 
   recvTraffic(from_id, traffic, ts) ::
