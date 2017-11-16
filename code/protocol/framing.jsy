@@ -8,10 +8,13 @@ const c_streaming = 'streaming'
 const _err_msgid_required = `Response reqires 'msgid'`
 const _err_token_required = `Transport reqires 'token'`
 
-export const basic_framings = @{}
-  from_routing: @{}
-    size: 8, bits: 0x1, mask: 0x1
-    f_test(obj) :: return null != obj.from_id
+
+function frm_routing() ::
+  const size = 8, bits = 0x1, mask = 0x1
+  return @{}
+    size, bits, mask
+
+    f_test(obj) :: return null != obj.from_id ? bits : false
 
     f_pack(obj, dv, offset) ::
       const {from_id} = obj
@@ -24,9 +27,12 @@ export const basic_framings = @{}
       from_id.id_router = dv.getInt32 @ 0+offset, little_endian
       from_id.id_target = dv.getInt32 @ 4+offset, little_endian
 
-  response: @{}
-    size: 8, bits: 0x2, mask: 0x2
-    f_test(obj) :: return null != obj.msgid
+function frm_response() ::
+  const size = 8, bits = 0x2, mask = 0x2
+  return @{}
+    size, bits, mask
+
+    f_test(obj) :: return null != obj.msgid ? bits : false
 
     f_pack(obj, dv, offset) ::
       if ! obj.msgid :: throw new Error @ _err_msgid_required
@@ -39,36 +45,47 @@ export const basic_framings = @{}
       obj.seq_ack = dv.getInt16 @ 4+offset, little_endian
       obj.ack_flags = dv.getInt16 @ 6+offset, little_endian
 
-  datagram: @{}
-    size: 0, bits: 0x0, mask: 0xc
-    transport: c_datagram
+
+
+function frm_datagram() ::
+  const size = 0, bits = 0x0, mask = 0xc
+  return @{} transport: c_datagram
+    size, bits, mask
+
     f_test(obj) ::
-      if c_datagram === obj.transport :: return true
+      if c_datagram === obj.transport :: return bits
       if obj.transport && c_single !== obj.transport :: return false
-      return ! obj.token
+      return ! obj.token ? bits : false
+
     f_pack(obj, dv, offset) ::
+
     f_unpack(obj, dv, offset) ::
       obj.transport = c_datagram
 
-  direct: @{}
-    size: 4, bits: 0x4, mask: 0xc
-    transport: c_direct
+function frm_direct() ::
+  const size = 4, bits = 0x4, mask = 0xc
+  return @{} transport: c_direct
+    size, bits, mask
+
     f_test(obj) ::
-      if c_direct === obj.transport :: return true
+      if c_direct === obj.transport :: return bits
       if obj.transport && c_single !== obj.transport :: return false
-      return !! obj.token
+      return !! obj.token ? bits : false
+
     f_pack(obj, dv, offset) ::
       if ! obj.token :: throw new Error @ _err_token_required
       dv.setInt32 @ 0+offset, obj.token, little_endian
+
     f_unpack(obj, dv, offset) ::
       obj.msgid = dv.getInt32 @ 0+offset, little_endian
       obj.transport = c_direct
 
-  multipart: @{}
-    size: 8, bits: 0x8, mask: 0xc
-    transport: c_multipart
-    f_test(obj) ::
-      return c_multipart === obj.transport
+function frm_multipart() ::
+  const size = 8, bits = 0x8, mask = 0xc
+  return @{} transport: c_multipart
+    size, bits, mask
+
+    f_test(obj) :: return c_multipart === obj.transport ? bits : false
 
     bind_seq_next, seq_pos: 4
     f_pack(obj, dv, offset) ::
@@ -85,11 +102,12 @@ export const basic_framings = @{}
       obj.seq_flags = dv.getInt16 @ 6+offset, little_endian
       obj.transport = c_multipart
 
-  streaming: @{}
-    size: 8, bits: 0xc, mask: 0xc
-    transport: c_streaming
-    f_test(obj) ::
-      return c_streaming === obj.transport
+function frm_streaming() ::
+  const size = 8, bits = 0xc, mask = 0xc
+  return @{} transport: c_streaming
+    size, bits, mask
+
+    f_test(obj) :: return c_streaming === obj.transport ? bits : false
 
     bind_seq_next, seq_pos: 4
     f_pack(obj, dv, offset) ::
@@ -107,13 +125,10 @@ export const basic_framings = @{}
       obj.transport = c_streaming
 
 
-function bind_seq_next(offset, seq_pos) ::
-  const seq_offset = seq_pos + offset
-  seq_next.seq_offset = seq_offset
+function bind_seq_next(offset) ::
+  const seq_offset = this.seq_pos + offset
   let seq = 1
-  return seq_next
-
-  function seq_next({flags, fin}, dv) ::
+  return function seq_next({flags, fin}, dv) ::
     if ! fin ::
       dv.setInt16 @ seq_offset, seq++, little_endian
       dv.setInt16 @ 2+seq_offset, 0|flags, little_endian
@@ -122,100 +137,93 @@ function bind_seq_next(offset, seq_pos) ::
       dv.setInt16 @ 2+seq_offset, 0|flags, little_endian
       seq = NaN
 
-export const framings = composeFramings()
-export default framings
 
+
+export default composeFramings()
 function composeFramings() ::
-  for const f of Object.values(basic_framings) ::
-    const {size, bits} = f, info = {size, bits}
-    if f.f_pack :: f.f_pack.size = size
-    if f.f_unpack :: f.f_unpack.size = size
-    if f.f_test :: f.f_test.bits = bits
+  const frm_from = frm_routing(), frm_resp = frm_response()
+  const frm_transports = @[] frm_datagram(), frm_direct(), frm_multipart(), frm_streaming()
 
-  const byBits = []
-  for let bits=0; bits <= 0xf; bits++ ::
-    const cfn = compose @ bits
-    byBits[bits] = cfn
+  if 8 !== frm_from.size || 8 !== frm_resp.size || 4 != frm_transports.length ::
+    throw new Error @ `Framing Size change`
 
-  const framingTests = Object.values(basic_framings).map(f=>f.f_test).filter(f=>f)
-  function testBits(obj) ::
-    let i = 0
-    for const f_test of framingTests ::
-      if f_test(obj) :: i |= f_test.bits
-    return i
+  const byBits = [], mask=0xf
 
-  byBits.testBits = testBits
-  byBits.choose = function (obj, lst) ::
-    const i = testBits(obj)
-    if null == lst :: lst = this || byBits
-    return lst[i]
+  ::
+    const t_from = frm_from.f_test, t_resp = frm_resp.f_test
+    const [t0,t1,t2,t3] = frm_transports.map @ f=>f.f_test
+
+    const testBits = byBits.testBits = obj =>
+      0 | t_from(obj) | t_resp(obj) | t0(obj) | t1(obj) | t2(obj) | t3(obj)
+
+    byBits.choose = function (obj, lst) ::
+      if null == lst :: lst = this || byBits
+      return lst[testBits(obj)]
+
+
+  for const T of frm_transports ::
+    const {bits:b, size, transport} = T
+
+    byBits[b|0] = @{} T, transport, bits: b|0, mask, size: size, op: ''
+    byBits[b|1] = @{} T, transport, bits: b|1, mask, size: 8 + size, op: 'f'
+    byBits[b|2] = @{} T, transport, bits: b|2, mask, size: 8 + size, op: 'r'
+    byBits[b|3] = @{} T, transport, bits: b|3, mask, size: 16 + size, op: 'fr'
+
+    for const fn_key of ['f_pack', 'f_unpack'] ::
+      const fn_tran = T[fn_key], fn_from = frm_from[fn_key], fn_resp = frm_resp[fn_key]
+
+      byBits[b|0][fn_key] = function(obj, dv) :: fn_tran(obj, dv, 0)
+      byBits[b|1][fn_key] = function(obj, dv) :: fn_from(obj, dv, 0); fn_tran(obj, dv, 8)
+      byBits[b|2][fn_key] = function(obj, dv) :: fn_resp(obj, dv, 0); fn_tran(obj, dv, 8)
+      byBits[b|3][fn_key] = function(obj, dv) :: fn_from(obj, dv, 0); fn_resp(obj, dv, 8); fn_tran(obj, dv, 16)
+
+  for const frm of byBits ::
+    bindAssembled @ frm
 
   return byBits
 
-  function fold(r, f, ...args) ::
-    const offset = 0|r.size
-    fpk2.size = r.size + (0|f.size)
-    return fpk2
 
-    function fpk2(obj, dv) ::
-      r(obj, dv, 0)
-      f(obj, dv, offset)
+function bindAssembled(frm) ::
+  const {T, size, f_pack, f_unpack} = frm
+  if T.bind_seq_next ::
+    frm.seq_next = T.bind_seq_next @ frm.size - T.size
 
-  function compose(bits) ::
-    const parts = Object.values(basic_framings)
-      .filter @ f => f.bits === (bits & f.mask)
+  delete frm.T
+  frm.pack = pack ; frm.unpack = unpack
+  const seq_next = frm.seq_next
 
-    const pack_frames = parts.map(f=>f.f_pack).reduce(fold)
-    const unpack_frames = parts.map(f=>f.f_unpack).reduce(fold)
-    const {seq_next} = parts.reduce @
-      (r, f) => 'function' === typeof r.seq_next ? r
-        : f.bind_seq_next
-          ? @{} seq_next: f.bind_seq_next(r.size, f.seq_pos)
-          : @{} size: r.size + f.size
-      , @{} size:0
+  function pack(pkt_type, pkt_obj) ::
+    if ! @ 0 <= pkt_type && pkt_type <= 255 ::
+      throw new TypeError @ `Expected pkt_type to be [0..255]`
 
-    const {transport} = parts.find(f=>f.transport)
-    const {size, op} = pack_frames
+    pkt_obj.type = pkt_type
+    if seq_next && null == pkt_obj.seq ::
+      pkt_obj.seq = true
 
-    return @{}
-      bits, mask:0xf, size, op
-      transport, parts
-      pack, unpack, seq_next
+    const dv = new DataView @ new ArrayBuffer(size)
+    f_pack(pkt_obj, dv, 0)
+    pkt_obj.header = dv.buffer
 
+    if true === pkt_obj.seq ::
+      _bind_iterable @ pkt_obj, dv.buffer.slice(0,size)
 
-    function pack(pkt_type, pkt_obj) ::
-      if ! @ 0 <= pkt_type && pkt_type <= 255 ::
-        throw new TypeError @ `Expected pkt_type to be [0..255]`
+  function unpack(pkt) ::
+    const buf = pkt.header_buffer()
+    const dv = new DataView @ new Uint8Array(buf).buffer
 
-      pkt_obj.type = pkt_type
-      if seq_next && null == pkt_obj.seq ::
-        pkt_obj.seq = true
+    const info = {}
+    f_unpack(info, dv, 0)
+    return pkt.info = info
 
-      const dv = new DataView @ new ArrayBuffer(size)
-      pack_frames(pkt_obj, dv)
-      pkt_obj.header = dv.buffer
+  function _bind_iterable(pkt_obj, buf_clone) ::
+    const {type} = pkt_obj
+    const {id_router, id_target, ttl, token} = pkt_obj
+    pkt_obj.next = next
 
-      if true === pkt_obj.seq ::
-        _bind_iterable @ pkt_obj, dv.buffer.slice(0,size)
-
-    function unpack(pkt) ::
-      const buf = pkt.header_buffer()
-      const dv = new DataView @ new Uint8Array(buf).buffer
-
-      const info = {}
-      unpack_frames(info, dv)
-      return pkt.info = info
-
-
-    function _bind_iterable(pkt_obj, buf_clone) ::
-      const {type} = pkt_obj
-      const {id_router, id_target, ttl, token} = pkt_obj
-      pkt_obj.next = next
-
-      function next(options) ::
-        if null == options :: options = {}
-        const header = buf_clone.slice()
-        seq_next @ options, new DataView @ header
-        return @{} done: !! options.fin, value: @{} // pkt_obj
-          id_router, id_target, type, ttl, token, header
+    function next(options) ::
+      if null == options :: options = {}
+      const header = buf_clone.slice()
+      seq_next @ options, new DataView @ header
+      return @{} done: !! options.fin, value: @{} // pkt_obj
+        id_router, id_target, type, ttl, token, header
 
