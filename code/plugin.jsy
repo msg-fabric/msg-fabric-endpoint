@@ -39,9 +39,9 @@ export default function(plugin_options) ::
       Sink, SourceEndpoint, Endpoint, protocols
 
     return function(hub) ::
-      return Object.assign @ endpoint, @: source, create: endpoint
+      return Object.assign @ endpoint, @: create: endpoint, server: endpoint, client
 
-      function source() ::
+      function client() ::
         return new SourceEndpoint(null, hub)
 
       function endpoint(on_init) ::
