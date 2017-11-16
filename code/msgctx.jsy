@@ -24,7 +24,7 @@ export default class MsgCtx ::
   static from(id_target, hub) ::
     const from_id = null === id_target ? null
       : @{} id_target, id_router: hub.router.id_self
-    return new this @ from_id, hub.router.resolveRoute
+    return new this @ from_id, hub.bindRouteDispatch()
 
   get to() :: return (...args) => this.clone().with @ ...args
 
