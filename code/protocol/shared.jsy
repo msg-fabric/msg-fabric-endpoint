@@ -145,13 +145,13 @@ export default function(packetParser, random_id, fragment_size) ::
       if fragment_size < body.byteLength ::
         if ! obj.token :: obj.token = random_id()
         const msend = msend_bytes('multipart', chan, obj)
-        return msend @ true, body
+        return @{} sent: msend @ true, body
 
       obj.transport = 'single'
       obj.body = body
       const pack_hdr = outbound.choose(obj)
       const pkt = packPacketObj @ pack_hdr(obj)
-      return chan @ pkt
+      return @{} sent: chan @ pkt
 
     function msend_bytes(transport, chan, obj, msg) ::
       obj.transport = transport
