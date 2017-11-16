@@ -7,8 +7,7 @@ export default class Sink ::
   static register(endpoint, kw_args) ::
     return new this().register(endpoint, kw_args)
   register(endpoint, {hub, id_target, on_msg, on_error}) ::
-    const unregister = () => ::
-      hub.unregisterTarget(id_target) && this.shutdown()
+    const unregister = () => hub.router.unregisterTarget(id_target)
 
     hub.router.registerTarget @ id_target,
       this._bindDispatch @ endpoint, on_msg, on_error, unregister
@@ -18,8 +17,10 @@ export default class Sink ::
     let alive = true
     const protocol = this._protocol
     const isAlive = () => alive
-    const shutdown = () => ::
-      if alive :: unregister(); unregister = alive = false
+    const shutdown = (err) => ::
+      if alive ::
+        unregister(); unregister = alive = false
+        if err :: console.error @ 'ENDPOINT SHUTDOWN: ' + err
 
     Object.assign @ this, endpoint.bindSink(this), @{} isAlive, shutdown
     Object.assign @ endpoint, @{} isAlive, shutdown
@@ -31,13 +32,14 @@ export default class Sink ::
       if undefined === recv_msg ::
         return on_error @ false, @: pkt
 
-      const msg = await recv_msg @ pkt, this, router
-      if ! msg :: return msg
-
       try ::
+        var msg = await recv_msg @ pkt, this, router
+        if ! msg :: return msg
+
         return await on_msg @ msg, pkt
       catch err ::
-        return on_error @ err, @: msg, pkt
+        if false !== on_error(err, {msg, pkt}) ::
+          endpoint.shutdown(err, {msg, pkt})
 
   stateFor(pkt, ifAbsent) ::
     const msgid = pkt.info.msgid

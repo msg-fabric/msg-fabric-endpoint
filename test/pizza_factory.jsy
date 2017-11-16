@@ -35,6 +35,7 @@ const pizza_place = hub.endpoint @ ep => ::
         console.log @ 'cook msg', msg
         ep.to(qa).send @:
           order: msg.order
+        //throw new Error @ 'Oops!'
 
   const qa = hub.endpoint @ ep => ::
     return @{}
@@ -85,7 +86,7 @@ const customer_order = () => ::
       address: '123 2nd Ave North, Seattle, WA 98103'
 
 if module === require.main ::
-  customer_order()
-
+  setTimeout @ customer_order, 0
+  //setTimeout @ customer_order, 1000
 
 
