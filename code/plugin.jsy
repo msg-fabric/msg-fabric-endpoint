@@ -1,6 +1,7 @@
 import init_protocol from './protocol/index.jsy'
 import EndpointBase from './endpoint.jsy'
 import SinkBase from './sink.jsy'
+import MsgCtxBase from './msgctx.jsy'
 
 const default_plugin_options = @:
   on_error: console.error
@@ -30,23 +31,24 @@ export default function(plugin_options) ::
   function bindEndpointApi(packetParser) ::
     const protocols = init_protocol @ packetParser, random_id
     const Sink = SinkBase.forProtocols(protocols)
-    const EndpointBase_P = EndpointBase.forProtocols(protocols)
-    class SourceEndpoint extends EndpointBase_P {}
-    class Endpoint extends EndpointBase_P {}
-    Endpoint.prototype.random_id = random_id
+    const MsgCtx = MsgCtxBase.forProtocols(protocols)
+    const Endpoint = EndpointBase.forProtocols(protocols)
 
     plugin_options.subclass @:
-      Sink, SourceEndpoint, Endpoint, protocols
+      Sink, Endpoint, MsgCtx, protocols
 
     return function(hub) ::
       return Object.assign @ endpoint, @: create: endpoint, server: endpoint, client
 
-      function client() ::
-        return new SourceEndpoint(null, hub)
+      function client(...args) ::
+        const msg_ctx = MsgCtx.from @ null, hub
+        return 0 !== args.length
+          ? msg_ctx.with(...args) : msg_ctx
 
       function endpoint(on_init) ::
         const id_target = random_id()
-        const ep = new Endpoint(id_target, hub)
+        const msg_ctx = MsgCtx.from @ id_target, hub
+        const ep = new Endpoint(msg_ctx)
 
         const target = on_init(ep)
         const on_msg = (target.on_msg || target).bind(target)

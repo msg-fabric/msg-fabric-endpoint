@@ -1,4 +1,3 @@
-import MsgCtxBase from './msgctx.jsy'
 import framings from './framing.jsy'
 import shared_proto from './shared.jsy'
 import json_proto from './json.jsy'
@@ -6,7 +5,6 @@ import binary_proto from './binary.jsy'
 import control_proto from './control.jsy'
 
 export * from './framing.jsy'
-export {MsgCtxBase}
 
 export default function init_protocol(packetParser, random_id) ::
   const shared = shared_proto @ packetParser, random_id
@@ -24,10 +22,8 @@ export default function init_protocol(packetParser, random_id) ::
     0xf0 // 0xf* — control
     shared
 
-  class MsgCtx extends MsgCtxBase ::
-  MsgCtx.prototype.random_id = random_id
-  MsgCtx.withCodecs @: json, binary, control, default: json
+  const codecs = @: json, binary, control, default: json
 
-  return @: MsgCtx, inbound
+  return @: inbound, codecs, random_id
 
 

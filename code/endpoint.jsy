@@ -1,27 +1,19 @@
 export default class Endpoint ::
-  static forProtocols({MsgCtx}) ::
+  static forProtocols({}) ::
     class Endpoint extends this ::
-    Endpoint.prototype.MsgCtx = MsgCtx
     return Endpoint
 
   valueOf() :: return this.from_id
   inspect() :: return `«Endpoint ${this.from_id.id_target}»`
 
-  constructor(id_target, hub) ::
-    const from_id = Object.freeze @
-      null != id_target
-        ? @{} id_router: hub.router.id_self, id_target
-        : null
+  constructor(msg_ctx) ::
+    msg_ctx = msg_ctx.withEndpoint(this)
 
     Object.defineProperties @ this, @:
-      from_id: @{} value: from_id, enumerable: true
-      to: @{} value: message
       _by_token: @{} value: this.createReplyMap()
       _by_traffic: @{} value: this.createTrafficMap()
-
-    const msg_ctx = this.MsgCtx.from @ this, hub.router.resolveRoute
-    function message(...args) ::
-      return msg_ctx.clone().with @ ...args
+      from_id: @{} value: msg_ctx.from_id, enumerable: true
+      to: @{} value: msg_ctx.to
 
   createMap() :: return new Map()
   createStateMap() :: return this.createMap()
@@ -38,6 +30,7 @@ export default class Endpoint ::
         if undefined !== t :: t.ts = ts
       this.recvTraffic(from_id, traffic, ts)
 
+    const {id_target, id_router} = this.from_id
     return @{}
       from_id: this.from_id
       by_msgid: this.createStateMap()
@@ -100,10 +93,13 @@ export default class Endpoint ::
       if ms_timeout ::
         const tid = setTimeout(timeout, ms_timeout)
         if tid.unref :: tid.unref()
-        function timeout() :: reject @ new ReplyTimeout
+        function timeout() :: reject @ new this.ReplyTimeout
 
     return sent => ::
       ans.sent = sent
       return ans
 
 class ReplyTimeout extends Error ::
+
+Object.assign @ Endpoint.prototype, @{}
+  ReplyTimeout

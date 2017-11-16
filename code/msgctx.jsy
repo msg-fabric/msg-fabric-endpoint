@@ -1,15 +1,32 @@
-export default class MsgCtxBase ::
-  constructor(endpoint, resolveRoute) ::
-    const {from_id} = endpoint
-    const ctx = undefined !== from_id ? {from_id} : {}
+export default class MsgCtx ::
+  static forProtocols({random_id, codecs}) ::
+    class MsgCtx extends this ::
+    MsgCtx.prototype.random_id = random_id
+    MsgCtx.withCodecs @ codecs
+    return MsgCtx
+
+  constructor(from_id, resolveRoute) ::
+    if null !== from_id ::
+      const {id_target, id_router} = from_id
+      from_id = Object.freeze @: id_target, id_router
+
+    const ctx = {from_id}
     Object.defineProperties @ this, @:
+      _root_: @: value: this
+      from_id: @: value: from_id
       ctx: @: value: ctx
       resolveRoute: @: value: resolveRoute
-      endpoint: @: value: endpoint
 
-  static from(endpoint, resolveRoute) ::
-    return new this @ endpoint, resolveRoute
+  withEndpoint(endpoint) ::
+    return Object.defineProperties @ this, @{}
+      endpoint: @{} value: endpoint
 
+  static from(id_target, hub) ::
+    const from_id = null === id_target ? null
+      : @{} id_target, id_router: hub.router.id_self
+    return new this @ from_id, hub.router.resolveRoute
+
+  get to() :: return (...args) => this.clone().with @ ...args
 
   ping(token=true) :: return this.codec('control', {token}).invoke @ 'ping'
   send(...args) :: return this.invoke @ 'send', ...args
@@ -22,9 +39,10 @@ export default class MsgCtxBase ::
     if true !== obj.token ::
       return this._codec[key] @ chan, obj, ...args
 
-    const token = obj.token = this.random_id()
-    const reply = this.endpoint.initReply(token, this, key)
-    return reply @ this._codec[key] @ chan, obj, ...args
+    else ::
+      const token = obj.token = this.random_id()
+      const reply = this.endpoint.initReply(token, this, key)
+      return reply @ this._codec[key] @ chan, obj, ...args
 
 
   with(...args) ::
@@ -58,8 +76,11 @@ export default class MsgCtxBase ::
   withReply() ::
     return this.clone @: token: true
 
+  reset(...args) ::
+    return Object.create @ this._root_, @{}
+      ctx: @: value: Object.assign @ {}, this.ctx, ...args
   clone(...args) ::
-    return Object.create @ this, @:
+    return Object.create @ this, @{}
       ctx: @: value: Object.assign @ {}, this.ctx, ...args
 
 
@@ -113,6 +134,6 @@ export default class MsgCtxBase ::
     this.prototype._codec = msgCodecs.default
     return this
 
-Object.assign @ MsgCtxBase.prototype, @{}
+Object.assign @ MsgCtx.prototype, @{}
   ms_timeout: 5000
 

@@ -79,8 +79,7 @@ const pizza_place = hub.endpoint @ ep => ::
 
 
 const customer_order = () => ::
-  hub.endpoint.client()
-    .to @ pizza_place
+  hub.endpoint.client(pizza_place)
     .send @: 
       ingredients: @# 'sausage', 'bacon', 'cheese', 'red sauce', 'thin crust'
       address: '123 2nd Ave North, Seattle, WA 98103'
