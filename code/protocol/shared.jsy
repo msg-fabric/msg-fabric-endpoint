@@ -1,15 +1,21 @@
 import framings from './framing.jsy'
 
-export default function(packetParser, random_id, fragment_size) ::
+export default function(packetParser, options, fragment_size) ::
   const {concatBuffers, packPacketObj, pack_utf8, unpack_utf8} = packetParser
   fragment_size = Number(fragment_size || 8000)
   if 1024 > fragment_size || 65000 < fragment_size ::
     throw new Error @ `Invalid fragment size: ${fragment_size}`
 
-  return @: packetParser, random_id
+  const {random_id, json_reviver, json_replacer} = options
+  return @: packetParser, random_id, json_parse, json_stringify
     createMultipart, createStream, packetFragments
     bindTransports
 
+
+  function json_parse(text) ::
+    return JSON.parse @ text, json_reviver
+  function json_stringify(obj) ::
+    return JSON.stringify @ obj, json_replacer
 
 
   function createMultipart(pkt, sink) ::
@@ -42,7 +48,7 @@ export default function(packetParser, random_id, fragment_size) ::
     function feed_init(pkt, as_content) ::
       state.feed = feed_ignore
 
-      const msg = pkt.body_json()
+      const msg = json_parse @ pkt.body_utf8()
       rstream = sink.recvStream(msg, pkt.info)
       if null == rstream :: return
 
@@ -195,7 +201,7 @@ export default function(packetParser, random_id, fragment_size) ::
         if ! obj.token :: obj.token = random_id()
         if 'object' !== typeof msg ::
           throw new TypeError @ `stream() requires a JSON seralizable msg for initial packet`
-        msg = JSON.stringify(msg)
+        msg = json_stringify(msg)
         const msend = send_impl('streaming', chan, obj, msg)
         write.write = write; write.end = end
         return write

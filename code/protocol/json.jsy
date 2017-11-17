@@ -1,5 +1,5 @@
 export default function json_protocol(shared) ::
-  const {createMultipart, createStream} = shared
+  const {createMultipart, createStream, json_parse, json_stringify} = shared
   const {pack_utf8, unpack_utf8} = shared.packetParser
 
   return @{}
@@ -10,7 +10,7 @@ export default function json_protocol(shared) ::
     get datagram() :: return this.direct
     direct: @{}
       t_recv(pkt, sink) ::
-        const msg = JSON.parse @ pkt.body_utf8() || undefined
+        const msg = json_parse @ pkt.body_utf8() || undefined
         return sink.recvMsg @ msg, pkt.info
 
     multipart: @{}
@@ -18,7 +18,7 @@ export default function json_protocol(shared) ::
         const state = sink.stateFor @ pkt, createMultipart
         const body_buf = state.feed(pkt)
         if undefined !== body_buf ::
-          const msg = JSON.parse @ unpack_utf8(body_buf) || undefined
+          const msg = json_parse @ unpack_utf8(body_buf) || undefined
           return sink.recvMsg @ msg, state.info
 
     streaming: @{}
@@ -28,9 +28,9 @@ export default function json_protocol(shared) ::
         return state.feed(pkt, pkt_as_ndjson)
 
   function packBody(body) ::
-    return pack_utf8 @ JSON.stringify(body)
+    return pack_utf8 @ json_stringify(body)
 
-function pkt_as_ndjson(pkt) ::
-  return pkt.body_utf8().split(/\r|\n|\0/)
-    .filter @ l=>l
-    .map @ l=>JSON.parse(l)
+  function pkt_as_ndjson(pkt) ::
+    return pkt.body_utf8().split(/\r|\n|\0/)
+      .filter @ l=>l
+      .map @ json_parse

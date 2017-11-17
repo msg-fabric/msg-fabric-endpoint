@@ -6,8 +6,8 @@ import control_proto from './control.jsy'
 
 export * from './framing.jsy'
 
-export default function init_protocol(packetParser, random_id) ::
-  const shared = shared_proto @ packetParser, random_id
+export default function init_protocol(packetParser, options) ::
+  const shared = shared_proto @ packetParser, options
 
   const inbound = []
   const json = shared.bindTransports @ inbound
@@ -24,6 +24,7 @@ export default function init_protocol(packetParser, random_id) ::
 
   const codecs = @: json, binary, control, default: json
 
+  const {random_id} = shared
   return @: inbound, codecs, random_id
 
 

@@ -11,7 +11,7 @@ const default_plugin_options = @:
 export default function(plugin_options) ::
   plugin_options = Object.assign @ {}, default_plugin_options, plugin_options
   const @{}
-    random_id
+    random_id, json_reviver, json_replacer
     on_error: default_on_error
   = plugin_options
 
@@ -29,7 +29,7 @@ export default function(plugin_options) ::
     return hub.endpoint = hub.endpoint(hub)
 
   function bindEndpointApi(packetParser) ::
-    const protocols = init_protocol @ packetParser, random_id
+    const protocols = init_protocol @ packetParser, @{} random_id, json_reviver, json_replacer
     const Sink = SinkBase.forProtocols(protocols)
     const MsgCtx = MsgCtxBase.forProtocols(protocols)
     const Endpoint = EndpointBase.forProtocols(protocols)
