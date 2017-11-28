@@ -18,7 +18,7 @@ export default function(packetParser, options, fragment_size) ::
     return JSON.stringify @ obj, json_replacer
 
 
-  function createMultipart(pkt, sink) ::
+  function createMultipart(pkt, sink, msgid) ::
     let parts = [], fin = false
     return @{} feed, info: pkt.info
 
@@ -30,53 +30,67 @@ export default function(packetParser, options, fragment_size) ::
       if ! fin :: return
       if parts.includes @ undefined :: return
 
+      sink.deleteStateFor(msgid)
+
       const res = concatBuffers(parts)
       parts = null
       return res
 
-  function createStream(pkt, sink) ::
-    let next=0, fin = false, rstream
+  function createStream(pkt, sink, msgid) ::
+    let next=0, fin = false, recvData, rstream
     const state = @{} feed: feed_init, info: pkt.info
     return state
-
-    function on_error(err, pkt) ::
-      if undefined === rstream.on_error ::
-        return void console.warn @
-          `Error during stream.feed:`, err
-      return rstream.on_error @ err, pkt
 
     function feed_init(pkt, as_content) ::
       state.feed = feed_ignore
 
+      const info = pkt.info
       const msg = json_parse @ pkt.body_utf8()
-      rstream = sink.recvStream(msg, pkt.info)
+      rstream = sink.recvStream(msg, info)
       if null == rstream :: return
+      check_fns @ rstream, 'on_error', 'on_data', 'on_end' 
+      recvData = sink.recvStreamData.bind(sink, rstream, info)
 
       try ::
-        if ! feed_seq(pkt) :: return
-        state.feed = feed_body
+        feed_seq(pkt)
       catch err ::
-        return on_error @ err, pkt
+        return rstream.on_error @ err, pkt
 
-      if 'function' === typeof rstream.on_init ::
+      state.feed = feed_body
+      if rstream.on_init ::
         return rstream.on_init(msg, pkt)
-      else return sink.recvMsg @ msg, pkt.info
-    
+
     function feed_body(pkt, as_content) ::
+      recvData()
       let data
       try ::
-        if ! feed_seq(pkt) :: return
+        feed_seq(pkt)
         data = as_content(pkt)
       catch err ::
-        return on_error @ err, pkt
-      return rstream.on_data @ data, pkt
+        return rstream.on_error @ err, pkt
 
-    function feed_ignore() ::
+      if fin ::
+        const res = rstream.on_data @ data, pkt
+        return rstream.on_end @ res, pkt
+      else ::
+        return rstream.on_data @ data, pkt
+
+    function feed_ignore(pkt) ::
+      try :: feed_seq(pkt)
+      catch err ::
 
     function feed_seq(pkt) ::
       let seq = pkt.info.seq
-      if seq < 0 :: fin = true; seq = -seq
-      if next === seq :: return ++next
+      if seq >= 0 ::
+        if next++ === seq ::
+          return // in order
+      else ::
+        fin = true
+        sink.deleteStateFor(msgid)
+        if next === -seq ::
+          next = 'done'
+          return // in-order, last packet
+
       state.feed = feed_ignore
       next = 'invalid'
       throw new Error @ `Packet out of sequence`
@@ -139,18 +153,16 @@ export default function(packetParser, options, fragment_size) ::
     const packBody = transports.packBody
     const packStream = transports.packStream
     const outbound = bindTransportImpls(inbound, highbits, transports)
-    const stream = ! transports.streaming ? null :
-      'object' === transports.streaming.mode
-        ? bind_stream @ msend_objects
-        : bind_stream @ msend_bytes
-
-    return @{} send, stream
+    return transports.streaming
+      ? @{} send, stream: bind_stream @ transports.streaming.mode
+      : @{} send
 
     function send(chan, obj, body) ::
       body = packBody(body)
       if fragment_size < body.byteLength ::
         if ! obj.token :: obj.token = random_id()
-        const msend = msend_bytes('multipart', chan, obj)
+        obj.transport = 'multipart'
+        const msend = msend_bytes(chan, obj)
         return @{} sent: msend @ true, body
 
       obj.transport = 'single'
@@ -159,8 +171,7 @@ export default function(packetParser, options, fragment_size) ::
       const pkt = packPacketObj @ pack_hdr(obj)
       return @{} sent: chan @ pkt
 
-    function msend_bytes(transport, chan, obj, msg) ::
-      obj.transport = transport
+    function msend_bytes(chan, obj, msg) ::
       const pack_hdr = outbound.choose(obj)
       let {next} = pack_hdr(obj)
       if null !== msg ::
@@ -178,8 +189,7 @@ export default function(packetParser, options, fragment_size) ::
         if fin :: next = null
         return res
 
-    function msend_objects(transport, chan, obj, msg) ::
-      obj.transport = transport
+    function msend_objects(chan, obj, msg) ::
       const pack_hdr = outbound.choose(obj)
       let {next} = pack_hdr(obj)
       if null !== msg ::
@@ -196,22 +206,27 @@ export default function(packetParser, options, fragment_size) ::
         if fin :: next = null
         return chan @ pkt
 
-    function bind_stream(send_impl) ::
-      return function stream (chan, obj, msg) ::
+    function bind_stream(mode) ::
+      const msend_impl = {object: msend_objects, bytes: msend_bytes}[mode]
+      if msend_impl :: return stream
+
+      function stream(chan, obj, msg) ::
         if ! obj.token :: obj.token = random_id()
+        obj.transport = 'streaming'
         if 'object' !== typeof msg ::
           throw new TypeError @ `stream() requires a JSON seralizable msg for initial packet`
         msg = json_stringify(msg)
-        const msend = send_impl('streaming', chan, obj, msg)
-        write.write = write; write.end = end
+        const msend = msend_impl(chan, obj, msg)
+        write.write = write; write.end = write.bind(true)
         return write
 
         function write(chunk) ::
           return chunk != null
-            ? msend @ false, packBody @ chunk
+            ? msend @ true===this, packBody @ chunk
             : msend @ true
 
-        function end(chunk) ::
-          return chunk != null
-            ? msend @ true, packBody @ chunk
-            : msend @ true
+
+function check_fns(obj, ...keys) ::
+  for const key of keys ::
+    if 'function' !== typeof obj[key] ::
+      throw new TypeError @ `Expected "${key}" to be a function`

@@ -30,12 +30,15 @@ export default class Sink ::
 
       const recv_msg = protocol[pkt.type]
       if undefined === recv_msg ::
-        return on_error @ false, @: pkt
+        return on_error @ false, @{} pkt
 
       try ::
         var msg = await recv_msg @ pkt, this, router
         if ! msg :: return msg
+      catch err ::
+        return on_error @ err, @{} pkt
 
+      try ::
         return await on_msg @ msg, pkt
       catch err ::
         if false !== on_error(err, {msg, pkt}) ::
@@ -48,8 +51,10 @@ export default class Sink ::
       if ! msgid ::
         throw new Error @ `Invalid msgid: ${msgid}`
       if 'function' === typeof ifAbsent ::
-        entry = ifAbsent(pkt, this)
+        entry = ifAbsent(pkt, this, msgid)
       else entry = ifAbsent
       this.by_msgid.set @ msgid, entry
     return entry
 
+  deleteStateFor(msgid) ::
+    return this.by_msgid.delete(msgid)

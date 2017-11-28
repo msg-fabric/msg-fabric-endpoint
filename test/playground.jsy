@@ -21,11 +21,20 @@ async function main() ::
     ep.recvCtrl = function(msg, info) ::
       debug @ 'AAA CTRL', msg
 
-    ep.recvStream = function(info) ::
-      debug @ 'AAA RECV STREAM:', info
-      return @{}
-        on_data(data, pkt) :: debug @ 'STREAM', data
-        on_error(err, pkt) :: debug @ 'STREAM ERR', err, pkt.info
+    ep.recvStream = function(msg, info) ::
+      debug @ '\nAAA RECV STREAM:', msg
+      const parts = []
+      return @{} msg, info, parts
+        on_init(data, pkt) ::
+          return this
+        on_data(data, pkt) ::
+          debug @ 'STREAM', data
+          parts.push @ ...data
+        on_end(res, pkt) ::
+          debug @ 'STREAM END'
+          return this
+        on_error(err, pkt) ::
+          debug @ 'STREAM ERR', err, pkt.info
 
     return @{}
       on_ready() ::
