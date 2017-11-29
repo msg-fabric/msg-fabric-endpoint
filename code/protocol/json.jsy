@@ -25,12 +25,10 @@ export default function json_protocol(shared) ::
       mode: 'object'
       t_recv(pkt, sink) ::
         const state = sink.stateFor @ pkt, createStream
-        return state.feed(pkt, pkt_as_ndjson)
+        return state.feed(pkt, unpackBody)
 
   function packBody(body) ::
     return pack_utf8 @ json_stringify(body)
 
-  function pkt_as_ndjson(pkt) ::
-    return pkt.body_utf8().split(/\r|\n|\0/)
-      .filter @ l=>l
-      .map @ json_parse
+  function unpackBody(pkt) ::
+    return json_parse @ pkt.body_utf8()

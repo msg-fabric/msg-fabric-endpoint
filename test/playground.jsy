@@ -22,14 +22,12 @@ async function main() ::
       debug @ 'AAA CTRL', msg
 
     ep.recvStream = function(msg, info) ::
-      debug @ '\nAAA RECV STREAM:', msg
-      const parts = []
-      return @{} msg, info, parts
-        on_init(data, pkt) ::
-          return this
+      debug @ '\nAAA NEW STREAM:', msg
+      const parts = msg.parts = []
+      return @{} msg, info
         on_data(data, pkt) ::
-          debug @ 'STREAM', data
-          parts.push @ ...data
+          debug @ 'STREAM DATA', data
+          parts.push @ data
         on_end(res, pkt) ::
           debug @ 'STREAM END'
           return this
@@ -87,7 +85,8 @@ async function main() ::
           await sleep(10)
           const out = reply.stream({aStream: true})
           for let idx = 0; idx<5; idx++ ::
-            out.write @: idx, ts: new Date()
+            for let j = 0; j<idx; j++ ::
+              out.write @: idx, j, ts: new Date()
             await sleep(10)
           out.end @: idx: 'done', ts: new Date()
 

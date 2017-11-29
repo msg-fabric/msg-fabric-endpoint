@@ -213,10 +213,7 @@ export default function(packetParser, options, fragment_size) ::
       function stream(chan, obj, msg) ::
         if ! obj.token :: obj.token = random_id()
         obj.transport = 'streaming'
-        if 'object' !== typeof msg ::
-          throw new TypeError @ `stream() requires a JSON seralizable msg for initial packet`
-        msg = json_stringify(msg)
-        const msend = msend_impl(chan, obj, msg)
+        const msend = msend_impl @ chan, obj, json_stringify(msg)
         write.write = write; write.end = write.bind(true)
         return write
 
