@@ -1,4 +1,4 @@
-import TestHub from './_test_hub.jsy'
+import TestHub from './_test_hub'
 
 const hub = new TestHub()
 

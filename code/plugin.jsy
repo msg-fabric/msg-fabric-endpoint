@@ -65,13 +65,15 @@ export default function(plugin_options) ::
         new Sink().register @ ep, hub, id_target,
           @{} on_msg, on_error, on_shutdown
 
+        let ready = Promise.resolve(target)
         if target.on_ready ::
-          Promise.resolve(target).then @
-            target => target.on_ready()
+          ready = ready.then @ target => target.on_ready()
 
-        return Object.create @ endpoint_target_api, @:
+        const res = Object.create @ endpoint_target_api, @:
           id_router: @{} enumerable: true, value: hub.router.id_self
           id_target: @{} enumerable: true, value: id_target
+          ready: @{} value: ready.then @ () => res
+        return res
 
 const endpoint_target_api = @:
   valueOf() :: return 0 | this.id_target
