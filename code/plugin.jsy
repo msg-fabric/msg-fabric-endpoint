@@ -57,13 +57,13 @@ export default function(plugin_options) ::
         const msg_ctx = MsgCtx.from @ id_target, hub
         const ep = new Endpoint(msg_ctx)
 
-        const target = on_init(ep)
+        const target = on_init(ep, hub)
         const on_msg = (target.on_msg || target).bind(target)
         const on_error = (target.on_error || default_on_error).bind(target)
         const on_shutdown = (target.on_shutdown || default_on_shutdown).bind(target)
 
-        Sink.register @ ep, @{}
-          hub, id_target, on_msg, on_error, on_shutdown
+        new Sink().register @ ep, hub, id_target,
+          @{} on_msg, on_error, on_shutdown
 
         if target.on_ready ::
           Promise.resolve(target).then @

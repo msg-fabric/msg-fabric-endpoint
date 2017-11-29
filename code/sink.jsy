@@ -4,16 +4,14 @@ export default class Sink ::
     Sink.prototype._protocol = inbound
     return Sink
 
-  static register(endpoint, kw_args) ::
-    return new this().register(endpoint, kw_args)
-  register(endpoint, {hub, id_target, on_msg, on_error, on_shutdown}) ::
+  register(endpoint, hub, id_target, handlers) ::
     const unregister = () => hub.router.unregisterTarget(id_target)
 
     hub.router.registerTarget @ id_target,
-      this._bindDispatch @ endpoint, unregister, on_msg, on_error, on_shutdown
+      this._bindDispatch @ endpoint, unregister, handlers
     return this
 
-  _bindDispatch(endpoint, unregister, on_msg, on_error, on_shutdown) ::
+  _bindDispatch(endpoint, unregister, {on_msg, on_error, on_shutdown}) ::
     let alive = true
     const protocol = this._protocol
     const isAlive = () => alive
