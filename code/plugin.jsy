@@ -4,7 +4,11 @@ import SinkBase from './sink.jsy'
 import MsgCtxBase from './msgctx.jsy'
 
 const default_plugin_options = @:
-  on_error: console.error
+  on_error(err, {msg, pkt}) ::
+    console.error @ 'ENDPOINT ERROR:', err, @{} msg, pkt
+    // return false to prevent auto-shutdown
+  on_shutdown(err, {msg, pkt}) ::
+    console.error @ 'ENDPOINT SHUTDOWN:' + err
   subclass({Sink, Endpoint, SourceEndpoint, protocols}) ::
 
 
@@ -13,6 +17,7 @@ export default function(plugin_options) ::
   const @{}
     random_id, json_reviver, json_replacer
     on_error: default_on_error
+    on_shutdown: default_on_shutdown
   = plugin_options
 
   return @: order: 1, subclass, post
@@ -38,7 +43,7 @@ export default function(plugin_options) ::
       Sink, Endpoint, MsgCtx, protocols
 
     return function(hub) ::
-      return Object.assign @ endpoint, @: create: endpoint, server: endpoint, client
+      return Object.assign @ endpoint, @: create, server: endpoint, client
 
       function client(...args) ::
         const msg_ctx = MsgCtx.from @ null, hub
@@ -46,16 +51,19 @@ export default function(plugin_options) ::
           ? msg_ctx.with(...args) : msg_ctx
 
       function endpoint(on_init) ::
-        const id_target = random_id()
+        return create @ random_id(), on_init
+
+      function create(id_target, on_init) ::
         const msg_ctx = MsgCtx.from @ id_target, hub
         const ep = new Endpoint(msg_ctx)
 
         const target = on_init(ep)
         const on_msg = (target.on_msg || target).bind(target)
         const on_error = (target.on_error || default_on_error).bind(target)
+        const on_shutdown = (target.on_shutdown || default_on_shutdown).bind(target)
 
         Sink.register @ ep, @{}
-          hub, id_target, on_msg, on_error
+          hub, id_target, on_msg, on_error, on_shutdown
 
         if target.on_ready ::
           Promise.resolve(target).then @

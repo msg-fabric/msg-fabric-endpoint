@@ -6,21 +6,21 @@ export default class Sink ::
 
   static register(endpoint, kw_args) ::
     return new this().register(endpoint, kw_args)
-  register(endpoint, {hub, id_target, on_msg, on_error}) ::
+  register(endpoint, {hub, id_target, on_msg, on_error, on_shutdown}) ::
     const unregister = () => hub.router.unregisterTarget(id_target)
 
     hub.router.registerTarget @ id_target,
-      this._bindDispatch @ endpoint, on_msg, on_error, unregister
+      this._bindDispatch @ endpoint, unregister, on_msg, on_error, on_shutdown
     return this
 
-  _bindDispatch(endpoint, on_msg, on_error, unregister) ::
+  _bindDispatch(endpoint, unregister, on_msg, on_error, on_shutdown) ::
     let alive = true
     const protocol = this._protocol
     const isAlive = () => alive
-    const shutdown = (err) => ::
+    const shutdown = (err, extra) => ::
       if alive ::
         unregister(); unregister = alive = false
-        if err :: console.error @ 'ENDPOINT SHUTDOWN: ' + err
+        on_shutdown(err, extra)
 
     Object.assign @ this, endpoint.bindSink(this), @{} isAlive, shutdown
     Object.assign @ endpoint, @{} isAlive, shutdown
@@ -30,19 +30,25 @@ export default class Sink ::
 
       const recv_msg = protocol[pkt.type]
       if undefined === recv_msg ::
-        return on_error @ false, @{} pkt
+        return void on_error @ false, @{} pkt, zone: 'pkt.type'
 
       try ::
         var msg = await recv_msg @ pkt, this, router
         if ! msg :: return msg
       catch err ::
-        return on_error @ err, @{} pkt
+        return void on_error @ err, @{} pkt, zone: 'protocol'
 
+      if false === alive ::
+        return false // change while awaiting above…
       try ::
         return await on_msg @ msg, pkt
       catch err ::
-        if false !== on_error(err, {msg, pkt}) ::
-          endpoint.shutdown(err, {msg, pkt})
+        try ::
+          var terminate = on_error @ err, @{} msg, pkt, zone: 'dispatch'
+        finally ::
+          if false !== terminate ::
+            shutdown(err, {msg, pkt})
+            return false // signal unregister to msg-fabric-core/router
 
   stateFor(pkt, ifAbsent) ::
     const msgid = pkt.info.msgid
