@@ -35,6 +35,7 @@
     "presets": "jsy/lean"
   },
   "scripts": {
+    "clean": "rm -rf ./dist/*",
     "build": "rollup --config",
     "watch": "npm -s run build -- --watch",
     "demo": "babel-node --extensions .js,.jsy test/playground.jsy",

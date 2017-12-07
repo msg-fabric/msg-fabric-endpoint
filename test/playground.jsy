@@ -1,17 +1,20 @@
 import TestHub from './_test_hub'
 
 function debug(...args) :: console.log @ ...args
+function debug_obj(obj) :: console.dir @ obj, @{} colors: true
 
 async function main() ::
   const hub = new TestHub()
 
   debug()
   const tgt_aaa = hub.endpoint @ ep_aaa
-  debug @: tgt_aaa
+  debug(tgt_aaa)
+  debug_obj @: tgt_aaa, as_json: tgt_aaa.toJSON()
 
   debug()
   const tgt_bbb = hub.endpoint @ ep_bbb
-  debug @: tgt_bbb
+  debug(tgt_bbb)
+  debug_obj @: tgt_bbb, as_json: tgt_bbb.toJSON()
 
   debug()
 
@@ -48,10 +51,13 @@ async function main() ::
         ep.to(tgt_bbb).ping()
           .then @ ans => debug("AAA CTRL pong() reply:", ans.msg)
 
-      on_msg(msg, pkt) ::
+      on_msg({msg}, pkt) ::
         debug()
-        debug @ 'AAA recv:', msg.msg
+        debug @ 'AAA recv:', msg
         debug()
+        if msg.self_as_obj ::
+          msg.self_as_obj().send @:
+            bouncy: msg.self_as_obj
 
   function ep_bbb(ep) ::
     debug @ 'BBB initialize'
@@ -63,19 +69,24 @@ async function main() ::
       on_ready() ::
         debug @ 'BBB ready'
 
-      async on_msg(msg, pkt) ::
+      async on_msg({msg, info}, pkt) ::
         debug()
-        debug @ 'BBB recv:', msg.msg
+        debug @ 'BBB recv:', msg
         debug()
 
-        const reply = ep.to(msg.info)
+        if msg.bouncy ::
+          msg.bouncy().send @: dbl_bounce: true
+          return
+        else if msg.dbl_bounce :: return
+
+        const reply = ep.to(info)
 
         if 0 ::
           setTimeout @ ()=>null, 6000
           reply.monitor().then @ monitor =>
             console.log @ 'Monitor expired:', monitor
         if 1 ::
-          reply.send @: reply: 'salut'
+          reply.send @: reply: 'salut', self_as_obj: ep
 
         if 1 ::
           reply.send @: reply: 'Salut! '.repeat(1200)

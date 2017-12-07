@@ -1,0 +1,44 @@
+export function encodeEndpoint(from_id, simple) ::
+  // {'Ϡ': `${id_router | b36}:${id_target | b36}`}
+  let {id_router:r, id_target:t} = from_id
+  r = (r>>>0).toString(36)
+  t = (t>>>0).toString(36)
+  return simple ? `${r}~${t}`
+    : @{} '\u03E0': `${r}~${t}`
+
+
+export function jsonUnpackEndpoints(msg_ctx) ::
+  const mem = new WeakSet()
+  return sz => JSON.parse @ sz, reviver
+
+  function reviver(key, value) ::
+    if '\u03E0' === key ::
+      mem.add(this)
+      return value
+    else if mem.has(value) ::
+      return decodeEndpoint(value, msg_ctx)
+    else return value
+
+export function decodeEndpoint(v, msg_ctx) ::
+  // {'Ϡ': `${id_router | b36}:${id_target | b36}`}
+  const from_id = v['\u03E0']
+  if undefined === from_id :: return
+  let [r,t] = from_id.split('~')
+  r = 0 | parseInt(r, 36)
+  t = 0 | parseInt(t, 36)
+
+  const res = @{} id_router: r, id_target: t
+  if undefined === msg_ctx ::
+    return res
+
+  return Object.defineProperties @ ep_tgt, @{}
+    encoded: @{} value: v
+    id_router: @{} value: r
+    id_target: @{} value: t
+    name, toJSON
+    
+  function ep_tgt(...args) ::
+    return msg_ctx.to(res, ...args)
+
+const name = @{} get() :: return `«\u03E0 ${this.encoded['\u03E0']}»`
+const toJSON = @{} value() :: return this.encoded

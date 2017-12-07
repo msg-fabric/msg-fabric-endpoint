@@ -1,10 +1,13 @@
+import {encodeEndpoint, jsonUnpackEndpoints, decodeEndpoint} from './json_endpoint.jsy'
+
 export default class Endpoint ::
   static forProtocols({}) ::
     class Endpoint extends this ::
     return Endpoint
 
   valueOf() :: return this.from_id
-  inspect() :: return `«Endpoint ${this.from_id.id_target}»`
+  inspect() :: return `«Endpoint ${this.encodeEndpoint(this.from_id, true)}»`
+  toJSON() :: return this.encodeEndpoint @ this.from_id
 
   constructor(msg_ctx) ::
     msg_ctx = msg_ctx.withEndpoint(this)
@@ -103,7 +106,18 @@ export default class Endpoint ::
       ans.sent = sent
       return ans
 
+  encodeEndpoint(from_id, simple) ::
+    return encodeEndpoint @ from_id || this.from_id, simple
+  decodeEndpoint(value, msg_ctx) ::
+    return decodeEndpoint @ value, msg_ctx || this
+
+
 class ReplyTimeout extends Error ::
 
 Object.assign @ Endpoint.prototype, @{}
   ReplyTimeout
+
+Object.assign @ Endpoint, @{}
+  encode: encodeEndpoint
+  decode: decodeEndpoint
+  jsonUnpackEndpoints

@@ -1,4 +1,5 @@
 import init_protocol from './protocol/index.jsy'
+import {encodeEndpoint, jsonUnpackEndpoints} from './json_endpoint.jsy'
 import EndpointBase from './endpoint.jsy'
 import SinkBase from './sink.jsy'
 import MsgCtxBase from './msgctx.jsy'
@@ -12,7 +13,7 @@ const default_plugin_options = @:
 
   subclass({Sink, Endpoint, MsgCtx, protocols}) ::
 
-  msg_unpack(ep) :: return JSON.parse
+  msg_unpack: jsonUnpackEndpoints
   msg_pack() :: return JSON.stringify
 
 
@@ -82,5 +83,5 @@ export default function(plugin_options) ::
 
 const endpoint_target_api = @:
   valueOf() :: return 0 | this.id_target
-  inspect() :: return `«Endpoint Target ${this.id_target}»`
-
+  inspect() :: return `«Endpoint Target ${encodeEndpoint(this, true)}»`
+  toJSON() :: return encodeEndpoint(this)

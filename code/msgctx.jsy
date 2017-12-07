@@ -1,9 +1,18 @@
+import {encodeEndpoint} from './json_endpoint.jsy'
+
 export default class MsgCtx ::
   static forProtocols({random_id, codecs}) ::
     class MsgCtx extends this ::
     MsgCtx.prototype.random_id = random_id
     MsgCtx.withCodecs @ codecs
     return MsgCtx
+
+  inspect() ::
+    const ctx = Object.assign({}, this.ctx)
+    ctx.from = encodeEndpoint(ctx.from_id, true)
+    ctx.to = encodeEndpoint(ctx, true)
+    delete ctx.from_id; delete ctx.id_router; delete ctx.id_target
+    return `«MsgCtx ${JSON.stringify(ctx)}»`
 
   constructor(from_id, resolveRoute) ::
     if null !== from_id ::
