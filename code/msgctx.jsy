@@ -1,4 +1,4 @@
-import {encodeEndpoint} from './json_endpoint.jsy'
+import {ep_encode} from './ep_target.jsy'
 
 export default class MsgCtx ::
   static forProtocols({random_id, codecs}) ::
@@ -9,8 +9,8 @@ export default class MsgCtx ::
 
   inspect() ::
     const ctx = Object.assign({}, this.ctx)
-    ctx.from = encodeEndpoint(ctx.from_id, true)
-    ctx.to = encodeEndpoint(ctx, true)
+    ctx.from = ep_encode(ctx.from_id, true)
+    ctx.to = ep_encode(ctx, true)
     delete ctx.from_id; delete ctx.id_router; delete ctx.id_target
     return `«MsgCtx ${JSON.stringify(ctx)}»`
 
@@ -37,21 +37,28 @@ export default class MsgCtx ::
 
   get to() :: return (...args) => this.clone().with @ ...args
 
-  ping(token=true) :: return this.codec('control', {token}).invoke @ 'ping'
-  send(...args) :: return this.invoke @ 'send', ...args
-  stream(...args) :: return this.invoke @ 'stream', ...args
+  ping(token=true) :: return this._invoke_ex @ this._msgCodecs.control.ping, [], token
+  send(...args) :: return this._invoke_ex @ this._codec.send, args
+  stream(...args) :: return this._invoke_ex @ this._codec.stream, args
+  invoke(key, ...args) :: return this._invoke_ex @ this._codec[key], args
+  bindInvoke(fnOrKey, token) ::
+    if 'function' !== typeof fnOrKey :: fnOrKey = this._codec
+    return (...args) => this._invoke_ex(fnOrKey, args, token)
 
-  invoke(key, ...args) ::
+  _invoke_ex(invoke, args, token) ::
     const obj = Object.assign @ {}, this.ctx
+    if undefined === token :: token = obj.token
+
     this.assertMonitor()
     const chan = this.resolveRoute(obj.id_router)
-    if true !== obj.token ::
-      return this._codec[key] @ chan, obj, ...args
+    if true !== token ::
+      obj.token = token
+      return invoke @ chan, obj, ...args
 
     else ::
-      const token = obj.token = this.random_id()
-      const reply = this.endpoint.initReply(token, this, key)
-      return reply @ this._codec[key] @ chan, obj, ...args
+      token = obj.token = this.random_id()
+      const reply = this.endpoint.initReply(token, this)
+      return reply @ invoke @ chan, obj, ...args
 
 
   with(...args) ::
@@ -149,6 +156,13 @@ export default class MsgCtx ::
         return this.codec @ msg_codec
     this.prototype._msgCodecs = msgCodecs
     this.prototype._codec = msgCodecs.default
+
+    // bind send_json as frequently used fast-path
+    const json_send = msgCodecs.json.send
+    Object.defineProperties @ this.prototype, @:
+      send_json: @{} get() ::
+        return (...args) => this._invoke_ex @ json_send, args
+
     return this
 
 Object.assign @ MsgCtx.prototype, @{}

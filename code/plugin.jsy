@@ -1,6 +1,6 @@
 import init_protocol from './protocol/index.jsy'
-import {encodeEndpoint, jsonUnpackEndpoints} from './json_endpoint.jsy'
 import EndpointBase from './endpoint.jsy'
+import EPTargetBase from './ep_target.jsy'
 import SinkBase from './sink.jsy'
 import MsgCtxBase from './msgctx.jsy'
 
@@ -11,16 +11,15 @@ const default_plugin_options = @:
   on_shutdown(err, {msg, pkt}) ::
     console.error @ 'ENDPOINT SHUTDOWN:' + err
 
-  subclass({Sink, Endpoint, MsgCtx, protocols}) ::
+  subclass({Endpoint, EPTarget, Sink, MsgCtx, protocols}) ::
 
-  msg_unpack: jsonUnpackEndpoints
-  msg_pack() :: return JSON.stringify
+  json_pack: JSON.stringify
 
 
 export default function(plugin_options) ::
   plugin_options = Object.assign @ {}, default_plugin_options, plugin_options
   const @{}
-    random_id, msg_unpack, msg_pack
+    random_id, json_pack
     on_error: default_on_error
     on_shutdown: default_on_shutdown
   = plugin_options
@@ -39,13 +38,14 @@ export default function(plugin_options) ::
     return hub.endpoint = hub.endpoint(hub)
 
   function bindEndpointApi(packetParser) ::
-    const protocols = init_protocol @ packetParser, @{} random_id, json_pack: msg_pack()
+    const protocols = init_protocol @ packetParser, @{} random_id, json_pack
     const Sink = SinkBase.forProtocols(protocols)
     const MsgCtx = MsgCtxBase.forProtocols(protocols)
     const Endpoint = EndpointBase.forProtocols(protocols)
+    const EPTarget = EPTargetBase.forProtocols(protocols)
 
     plugin_options.subclass @:
-      Sink, Endpoint, MsgCtx, protocols
+      Endpoint, EPTarget, Sink, MsgCtx, protocols
 
     return function(hub) ::
       return Object.assign @ endpoint, @: create, server: endpoint, client
@@ -56,18 +56,26 @@ export default function(plugin_options) ::
           ? msg_ctx.with(...args) : msg_ctx
 
       function endpoint(on_init) ::
-        return create @ random_id(), on_init
+        const targets = hub.router.targets
+        do var id_target = random_id()
+        while targets.has @ id_target
+        return create @ id_target, on_init
 
       function create(id_target, on_init) ::
         const msg_ctx = MsgCtx.from @ id_target, hub
-        const ep = new Endpoint(msg_ctx)
+        const ep_tgt = new EPTarget(msg_ctx.from_id)
+        const ep = new Endpoint(msg_ctx, ep_tgt)
 
         const target = on_init(ep, hub)
         const on_msg = (target.on_msg || target).bind(target)
         const on_error = (target.on_error || default_on_error).bind(target)
         const on_shutdown = (target.on_shutdown || default_on_shutdown).bind(target)
 
-        const sink = new Sink @ ep.json_unpack || msg_unpack(ep)
+        const json_unpack = target.json_unpack
+          ? target.json_unpack.bind(target)
+          : EPTarget.jsonUnpack(msg_ctx)
+
+        const sink = new Sink @ json_unpack
         sink.register @ ep, hub, id_target,
           @{} on_msg, on_error, on_shutdown
 
@@ -75,13 +83,6 @@ export default function(plugin_options) ::
         if target.on_ready ::
           ready = ready.then @ target => target.on_ready()
 
-        const res = Object.create @ endpoint_target_api, @:
-          id_router: @{} enumerable: true, value: hub.router.id_self
-          id_target: @{} enumerable: true, value: id_target
-          ready: @{} value: ready.then @ () => res
-        return res
+        return Object.defineProperties @ ep_tgt, @{}
+          ready: @{} value: ready.then @ () => ep_tgt
 
-const endpoint_target_api = @:
-  valueOf() :: return 0 | this.id_target
-  inspect() :: return `«Endpoint Target ${encodeEndpoint(this, true)}»`
-  toJSON() :: return encodeEndpoint(this)

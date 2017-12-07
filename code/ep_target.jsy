@@ -1,0 +1,78 @@
+export default class EPTarget ::
+  static forProtocols({}) ::
+    class EPTarget extends this ::
+    return EPTarget
+
+  constructor(id, msg_ctx) ::
+    const props = @{}
+      id_router: @{} enumerable: true, value: id.id_router
+      id_target: @{} enumerable: true, value: id.id_target
+
+    if msg_ctx ::
+      let fn
+      props.send = @{} get: () =>
+        fn || @ fn = msg_ctx.to(this).send_json
+
+    return Object.defineProperties @ this, props
+
+
+  valueOf() :: return 0 | this.id_target
+  inspect() :: return `«EPTarget ${this.ep_encode(this, true)}»`
+  toJSON() :: return this.ep_encode(this)
+  isEPTarget() :: return true
+
+  static json_as_reply(msg_ctx) ::
+    return obj => this.from_json(obj.from_id, msg_ctx)
+  static from_json(id, msg_ctx) ::
+    if id :: return new this(id, msg_ctx)
+
+  static jsonUnpack(msg_ctx, xformByKey) ::
+    xformByKey = Object.create(xformByKey || null)
+    xformByKey[this.token] = v =>
+      this.from_json @ this.ep_decode(v), msg_ctx
+    return this.jsonUnpackByKey(xformByKey)
+
+  static jsonUnpackByKey(xformByKey) ::
+    const reg = new WeakMap()
+    return sz => JSON.parse @ sz, reviver
+
+    function reviver(key, value) ::
+      const xfn = xformByKey[key]
+      if undefined !== xfn ::
+        reg.set(this, xfn)
+        return value
+
+      if 'object' === typeof value ::
+        const vfn = reg.get(value)
+        if undefined !== vfn ::
+          return vfn @ value
+      return value
+
+
+const token = '\u03E0' // 'Ϡ'
+EPTarget.token = token
+
+EPTarget.ep_encode = EPTarget.prototype.ep_encode = ep_encode
+export function ep_encode(from_id, simple) ::
+  let {id_router:r, id_target:t} = from_id
+  r = (r>>>0).toString(36)
+  t = (t>>>0).toString(36)
+  return simple
+    ? `${token} ${r}~${t}`
+    : @{} [token]: `${r}~${t}`
+
+
+EPTarget.ep_decode = EPTarget.prototype.ep_decode = ep_decode
+export function ep_decode(v) ::
+  const from_id = 'string' === typeof v
+    ? v.split(token)[1]
+    : v[token]
+  if ! from_id :: return
+
+  let [r,t] = from_id.split('~')
+  if undefined === t :: return
+  r = 0 | parseInt(r, 36)
+  t = 0 | parseInt(t, 36)
+
+  return @{} id_router: r, id_target: t
+

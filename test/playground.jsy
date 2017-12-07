@@ -51,12 +51,12 @@ async function main() ::
         ep.to(tgt_bbb).ping()
           .then @ ans => debug("AAA CTRL pong() reply:", ans.msg)
 
-      on_msg({msg}, pkt) ::
+      on_msg({msg, reply}, pkt) ::
         debug()
-        debug @ 'AAA recv:', msg
+        debug @ 'AAA recv:', msg, 'from:', reply
         debug()
         if msg.self_as_obj ::
-          msg.self_as_obj().send @:
+          msg.self_as_obj.send @:
             bouncy: msg.self_as_obj
 
   function ep_bbb(ep) ::
@@ -72,12 +72,15 @@ async function main() ::
       async on_msg({msg, info}, pkt) ::
         debug()
         debug @ 'BBB recv:', msg
+        debug_obj @ info
         debug()
 
         if msg.bouncy ::
-          msg.bouncy().send @: dbl_bounce: true
+          msg.bouncy.send @: dbl_bounce: true
+          //ep.to(msg.bouncy).send @: dbl_bounce: true
           return
-        else if msg.dbl_bounce :: return
+        else if msg.dbl_bounce ::
+          return // stop here
 
         const reply = ep.to(info)
 

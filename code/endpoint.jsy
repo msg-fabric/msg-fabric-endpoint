@@ -1,4 +1,4 @@
-import {encodeEndpoint, jsonUnpackEndpoints, decodeEndpoint} from './json_endpoint.jsy'
+import {ep_encode} from './ep_target.jsy'
 
 export default class Endpoint ::
   static forProtocols({}) ::
@@ -6,14 +6,16 @@ export default class Endpoint ::
     return Endpoint
 
   valueOf() :: return this.from_id
-  inspect() :: return `«Endpoint ${this.encodeEndpoint(this.from_id, true)}»`
-  toJSON() :: return this.encodeEndpoint @ this.from_id
+  inspect() :: return `«Endpoint ${ep_encode(this.from_id, true)}»`
 
-  constructor(msg_ctx) ::
+  constructor(msg_ctx, ep_tgt) ::
     msg_ctx = msg_ctx.withEndpoint(this)
+    const asReply = ep_tgt.constructor.json_as_reply(msg_ctx)
     Object.defineProperties @ this, @:
       from_id: @{} value: msg_ctx.from_id, enumerable: true
+      toJSON: @{} value() :: return ep_tgt.toJSON()
       to: @{} value: msg_ctx.to
+      asReply: @{} value: asReply
 
   createMap() :: return new Map()
   createStateMap() :: return this.createMap()
@@ -71,7 +73,7 @@ export default class Endpoint ::
   recvTraffic(from_id, traffic, ts) ::
   recvCtrl(msg, info) ::
   recvMsg(msg, info) ::
-    return @{} msg, info
+    return @{} msg, info, reply: this.asReply(info)
   recvStream(msg, info) ::
     console.warn @ `Unhandle recv stream: ${info}`
     return null
@@ -82,7 +84,7 @@ export default class Endpoint ::
          on_error(err, pkt) :: console.log @ err
     */
 
-  initReply(token, msg_ctx, kind) ::
+  initReply(token, msg_ctx) ::
     return this.initReplyPromise @ token, msg_ctx.ms_timeout
 
   initMonitor(id_target) ::
@@ -106,18 +108,9 @@ export default class Endpoint ::
       ans.sent = sent
       return ans
 
-  encodeEndpoint(from_id, simple) ::
-    return encodeEndpoint @ from_id || this.from_id, simple
-  decodeEndpoint(value, msg_ctx) ::
-    return decodeEndpoint @ value, msg_ctx || this
-
 
 class ReplyTimeout extends Error ::
 
 Object.assign @ Endpoint.prototype, @{}
   ReplyTimeout
 
-Object.assign @ Endpoint, @{}
-  encode: encodeEndpoint
-  decode: decodeEndpoint
-  jsonUnpackEndpoints
