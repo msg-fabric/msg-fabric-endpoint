@@ -1,16 +1,14 @@
 export default function json_protocol(shared) ::
-  const {createMultipart, createStream, json_parse, json_stringify} = shared
+  const {createMultipart, createStream, json_pack} = shared
   const {pack_utf8, unpack_utf8} = shared.packetParser
 
   return @{}
     packBody
-    packStream(chunk, fragment_size) ::
-      return @[] packBody(chunk)
 
     get datagram() :: return this.direct
     direct: @{}
       t_recv(pkt, sink) ::
-        const msg = json_parse @ pkt.body_utf8() || undefined
+        const msg = sink.json_unpack @ pkt.body_utf8() || undefined
         return sink.recvMsg @ msg, pkt.info
 
     multipart: @{}
@@ -18,7 +16,7 @@ export default function json_protocol(shared) ::
         const state = sink.stateFor @ pkt, createMultipart
         const body_buf = state.feed(pkt)
         if undefined !== body_buf ::
-          const msg = json_parse @ unpack_utf8(body_buf) || undefined
+          const msg = sink.json_unpack @ unpack_utf8(body_buf) || undefined
           return sink.recvMsg @ msg, state.info
 
     streaming: @{}
@@ -28,7 +26,7 @@ export default function json_protocol(shared) ::
         return state.feed(pkt, unpackBody)
 
   function packBody(body) ::
-    return pack_utf8 @ json_stringify(body)
+    return pack_utf8 @ json_pack(body)
 
-  function unpackBody(pkt) ::
-    return json_parse @ pkt.body_utf8()
+  function unpackBody(pkt, sink) ::
+    return sink.json_unpack @ pkt.body_utf8()

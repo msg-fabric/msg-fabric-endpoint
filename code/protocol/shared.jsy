@@ -6,16 +6,10 @@ export default function(packetParser, options, fragment_size) ::
   if 1024 > fragment_size || 65000 < fragment_size ::
     throw new Error @ `Invalid fragment size: ${fragment_size}`
 
-  const {random_id, json_reviver, json_replacer} = options
-  return @: packetParser, random_id, json_parse, json_stringify
+  const {random_id, json_pack} = options
+  return @: packetParser, random_id, json_pack
     createMultipart, createStream, packetFragments
     bindTransports
-
-
-  function json_parse(text) ::
-    return JSON.parse @ text, json_reviver
-  function json_stringify(obj) ::
-    return JSON.stringify @ obj, json_replacer
 
 
   function createMultipart(pkt, sink, msgid) ::
@@ -45,7 +39,7 @@ export default function(packetParser, options, fragment_size) ::
       state.feed = feed_ignore
 
       const info = pkt.info
-      const msg = json_parse @ pkt.body_utf8()
+      const msg = sink.json_unpack @ pkt.body_utf8()
       rstream = sink.recvStream(msg, info)
       if null == rstream :: return
       check_fns @ rstream, 'on_error', 'on_data', 'on_end' 
@@ -65,7 +59,7 @@ export default function(packetParser, options, fragment_size) ::
       let data
       try ::
         feed_seq(pkt)
-        data = as_content(pkt)
+        data = as_content(pkt, sink)
       catch err ::
         return rstream.on_error @ err, pkt
 
@@ -151,7 +145,6 @@ export default function(packetParser, options, fragment_size) ::
 
   function bindTransports(inbound, highbits, transports) ::
     const packBody = transports.packBody
-    const packStream = transports.packStream
     const outbound = bindTransportImpls(inbound, highbits, transports)
     return transports.streaming
       ? @{} send, stream: bind_stream @ transports.streaming.mode
@@ -213,13 +206,13 @@ export default function(packetParser, options, fragment_size) ::
       function stream(chan, obj, msg) ::
         if ! obj.token :: obj.token = random_id()
         obj.transport = 'streaming'
-        const msend = msend_impl @ chan, obj, json_stringify(msg)
+        const msend = msend_impl @ chan, obj, json_pack(msg)
         write.write = write; write.end = write.bind(true)
         return write
 
         function write(chunk) ::
           return chunk != null
-            ? msend @ true===this, packBody @ chunk
+            ? msend @ true===this, packBody(chunk)
             : msend @ true
 
 

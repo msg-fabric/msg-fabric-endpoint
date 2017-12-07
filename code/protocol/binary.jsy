@@ -4,8 +4,6 @@ export default function binary_protocol(shared) ::
   const {asBuffer} = shared.packetParser
   return @{}
     packBody: asBuffer
-    packStream(chunk, fragment_size) ::
-      return @[] asBuffer(chunk)
 
     get datagram() :: return this.direct
     direct: @{}

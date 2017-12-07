@@ -9,13 +9,17 @@ const default_plugin_options = @:
     // return false to prevent auto-shutdown
   on_shutdown(err, {msg, pkt}) ::
     console.error @ 'ENDPOINT SHUTDOWN:' + err
-  subclass({Sink, Endpoint, SourceEndpoint, protocols}) ::
+
+  subclass({Sink, Endpoint, MsgCtx, protocols}) ::
+
+  msg_unpack(ep) :: return JSON.parse
+  msg_pack() :: return JSON.stringify
 
 
 export default function(plugin_options) ::
   plugin_options = Object.assign @ {}, default_plugin_options, plugin_options
   const @{}
-    random_id, json_reviver, json_replacer
+    random_id, msg_unpack, msg_pack
     on_error: default_on_error
     on_shutdown: default_on_shutdown
   = plugin_options
@@ -34,7 +38,7 @@ export default function(plugin_options) ::
     return hub.endpoint = hub.endpoint(hub)
 
   function bindEndpointApi(packetParser) ::
-    const protocols = init_protocol @ packetParser, @{} random_id, json_reviver, json_replacer
+    const protocols = init_protocol @ packetParser, @{} random_id, json_pack: msg_pack()
     const Sink = SinkBase.forProtocols(protocols)
     const MsgCtx = MsgCtxBase.forProtocols(protocols)
     const Endpoint = EndpointBase.forProtocols(protocols)
@@ -62,7 +66,8 @@ export default function(plugin_options) ::
         const on_error = (target.on_error || default_on_error).bind(target)
         const on_shutdown = (target.on_shutdown || default_on_shutdown).bind(target)
 
-        new Sink().register @ ep, hub, id_target,
+        const sink = new Sink @ ep.json_unpack || msg_unpack(ep)
+        sink.register @ ep, hub, id_target,
           @{} on_msg, on_error, on_shutdown
 
         let ready = Promise.resolve(target)
