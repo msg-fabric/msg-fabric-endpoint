@@ -6,11 +6,18 @@ import MsgCtxBase from './msgctx.jsy'
 
 const default_plugin_options = @:
   plugin_name: 'endpoint'
-  on_error(err, {msg, pkt}) ::
-    console.error @ 'ENDPOINT ERROR:', err, @{} msg, pkt
+  on_msg({msg, reply, info}) ::
+    console.warn @ 'ENDPOINT MSG:', @{} msg, reply, info
+  on_send_error(ep, err) ::
+    console.error @ 'ENDPOINT SEND ERROR:', err
+    ep.shutdown()
+  on_recv_error(ep, err, extra) ::
+    console.error @ 'ENDPOINT RECV ERROR:', err, extra
+    // const {msg, pkt} = extra
     // return false to prevent auto-shutdown
-  on_shutdown(err, {msg, pkt}) ::
-    console.error @ 'ENDPOINT SHUTDOWN:' + err
+  on_shutdown(ep, err, extra) ::
+    // const {msg, pkt} = extra
+    console.error @ `ENDPOINT SHUTDOWN: ${err.message}`
 
   subclass(classes) ::
     //const {Endpoint, EPTarget, Sink, MsgCtx, protocols} = classes
@@ -25,7 +32,9 @@ export default function(plugin_options) ::
   plugin_options = Object.assign @ {}, default_plugin_options, plugin_options
   const @{}
     plugin_name, random_id, json_pack
-    on_error: default_on_error
+    on_msg: default_on_msg
+    on_send_error: default_on_send_error
+    on_recv_error: default_on_recv_error
     on_shutdown: default_on_shutdown
     createMap, createCacheMap
   = plugin_options
@@ -56,11 +65,8 @@ export default function(plugin_options) ::
 
     return function(hub) ::
       const resolveRouteChannel = hub.bindRouteChannel @ null, createCacheMap()
-      return Object.assign @ endpoint, @: create, server: endpoint, client
+      return Object.assign @ endpoint, @: create, server: endpoint, client, clientEndpoint
 
-      function client(...args) ::
-        const msg_ctx = new MsgCtx @ null, resolveRouteChannel
-        return 0 !== args.length ? msg_ctx.to(...args) : msg_ctx
 
       function endpoint(on_init) ::
         const targets = hub.router.targets
@@ -76,18 +82,22 @@ export default function(plugin_options) ::
 
         const ready = Promise
           .resolve @ on_init(ep, hub)
-          .then @ on_ready
+          .then @ _after_init
 
         return Object.defineProperties @ ep_tgt, @{}
           ready: @{} value: ready.then @ () => ep_tgt
 
-        function on_ready(target) ::
+
+        function _after_init(target) ::
           if null == target ::
             throw new TypeError @ `Expected endpoint init to return a closure or interface`
 
-          const on_msg = (target.on_msg || target).bind(target)
-          const on_error = (target.on_error || default_on_error).bind(target)
-          const on_shutdown = (target.on_shutdown || default_on_shutdown).bind(target)
+          const on_msg = (target.on_msg || ('function' === typeof target ? target : default_on_msg)).bind(target)
+          const on_send_error = (target.on_send_error || default_on_send_error).bind(target, ep)
+          const on_recv_error = (target.on_recv_error || default_on_recv_error).bind(target, ep)
+          const on_shutdown = (target.on_shutdown || default_on_shutdown).bind(target, ep)
+
+          ready.catch @ on_send_error
 
           const json_unpack = target.json_unpack
             ? target.json_unpack.bind(target)
@@ -95,7 +105,35 @@ export default function(plugin_options) ::
 
           const sink = new Sink @ json_unpack
           sink.register @ ep, hub, id_target,
-            @{} on_msg, on_error, on_shutdown
+            @{} on_msg, on_recv_error, on_shutdown
 
-          return target.on_ready ? target.on_ready() : target
+          return target.on_ready
+            ? target.on_ready(ep, hub)
+            : target
+
+
+
+      function clientEndpoint(on_ready) ::
+        let ep_tgt, done = new Promise @ (resolve, reject) => ::
+          ep_tgt = endpoint @ ep => @:
+            async on_ready(ep, hub) ::
+              resolve @ await on_ready(ep, hub)
+              ep.shutdown()
+
+            on_shutdown(ep) :: reject()
+            on_send_error(ep, err) :: reject(err)
+
+        return Object.assign @ ep_tgt, @{}
+          then(y,n) :: return done.then(y,n)
+          catch(n) :: return done.catch(n)
+          finally(cb) :: return done.then(cb, cb)
+          done
+
+
+      function client(...args) ::
+        if 1 === args.length && 'function' === typeof args[0] ::
+          return clientEndpoint(args[0])
+
+        const msg_ctx = new MsgCtx @ null, resolveRouteChannel
+        return 0 !== args.length ? msg_ctx.to(...args) : msg_ctx
 
