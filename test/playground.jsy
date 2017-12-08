@@ -43,8 +43,7 @@ async function main() ::
 
         const token = 1942
         debug @ 'AAA sending "hello" with token ${token}'
-        ep.to(tgt_bbb)
-          .with @: token, trailer: {awesome: true}
+        ep.to(tgt_bbb, {token})
           .send @: say: 'hello'
 
         debug @ 'SEND ping'

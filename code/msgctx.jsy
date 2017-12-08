@@ -1,4 +1,4 @@
-import {ep_encode} from './ep_target.jsy'
+import {ep_encode, ep_decode} from './ep_target.jsy'
 
 export default class MsgCtx ::
   static forProtocols({random_id, codecs}) ::
@@ -30,7 +30,6 @@ export default class MsgCtx ::
     return Object.defineProperties @ this, @{}
       endpoint: @{} value: endpoint
 
-  get to() :: return (...args) => this.clone().with @ ...args
 
   ping(token=true) :: return this._invoke_ex @ this._msgCodecs.control.ping, [], token
   send(...args) :: return this._invoke_ex @ this._codec.send, args
@@ -56,15 +55,15 @@ export default class MsgCtx ::
       return reply @ invoke @ chan, obj, ...args
 
 
-  with(...args) ::
-    const ctx = this.ctx
-    for let tgt of args ::
-      if 'number' === typeof tgt ::
-        ctx.id_target = tgt
-        ctx.id_router = ctx.from_id.id_router
-        continue
+  get to() :: return (tgt, ...args) => ::
+    const self = this.clone()
 
-      const {from_id: reply_id, id_target, id_router, token, msgid} = tgt
+    const ctx = self.ctx
+    if 'number' === typeof tgt ::
+      ctx.id_target = tgt
+      ctx.id_router = ctx.from_id.id_router
+    else ::
+      const {from_id: reply_id, id_target, id_router, token, msgid} = ep_decode(tgt) || tgt
 
       if undefined !== id_target ::
         if undefined === id_router ::
@@ -82,6 +81,14 @@ export default class MsgCtx ::
       if undefined !== token :: ctx.token = token
       if undefined !== msgid :: ctx.msgid = msgid
 
+    return 0 === args.length ? self : self.with @ ...args
+
+  with(...args) ::
+    const ctx = this.ctx
+    for let tgt of args ::
+      const {token, msgid} = tgt
+      if undefined !== token :: ctx.token = token
+      if undefined !== msgid :: ctx.msgid = msgid
     return this
 
   withReply() ::

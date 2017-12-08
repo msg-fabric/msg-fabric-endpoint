@@ -60,7 +60,7 @@ export default function(plugin_options) ::
 
       function client(...args) ::
         const msg_ctx = new MsgCtx @ null, resolveRoute
-        return 0 !== args.length ? msg_ctx.with(...args) : msg_ctx
+        return 0 !== args.length ? msg_ctx.to(...args) : msg_ctx
 
       function endpoint(on_init) ::
         const targets = hub.router.targets
