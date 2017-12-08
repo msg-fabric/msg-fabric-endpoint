@@ -1,6 +1,7 @@
 export default class EPTarget ::
-  static forProtocols({}) ::
+  static subclass(extensions) ::
     class EPTarget extends this ::
+    Object.assign @ EPTarget.prototype, extensions
     return EPTarget
 
   constructor(id, msg_ctx) ::

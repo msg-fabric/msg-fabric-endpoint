@@ -1,8 +1,9 @@
 import {ep_encode} from './ep_target.jsy'
 
 export default class Endpoint ::
-  static forProtocols({}) ::
+  static subclass(extensions) ::
     class Endpoint extends this ::
+    Object.assign @ Endpoint.prototype, extensions
     return Endpoint
 
   valueOf() :: return this.from_id

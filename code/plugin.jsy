@@ -5,23 +5,29 @@ import SinkBase from './sink.jsy'
 import MsgCtxBase from './msgctx.jsy'
 
 const default_plugin_options = @:
+  plugin_name: 'endpoint'
   on_error(err, {msg, pkt}) ::
     console.error @ 'ENDPOINT ERROR:', err, @{} msg, pkt
     // return false to prevent auto-shutdown
   on_shutdown(err, {msg, pkt}) ::
     console.error @ 'ENDPOINT SHUTDOWN:' + err
 
-  subclass({Endpoint, EPTarget, Sink, MsgCtx, protocols}) ::
+  subclass(classes) ::
+    //const {Endpoint, EPTarget, Sink, MsgCtx, protocols} = classes
+    return classes
 
   json_pack: JSON.stringify
+  createMap() :: return new Map() // LRUMap, HashbeltMap
+  createCacheMap() :: return new Map() // LRUMap, HashbeltMap
 
 
 export default function(plugin_options) ::
   plugin_options = Object.assign @ {}, default_plugin_options, plugin_options
   const @{}
-    random_id, json_pack
+    plugin_name, random_id, json_pack
     on_error: default_on_error
     on_shutdown: default_on_shutdown
+    createMap, createCacheMap
   = plugin_options
 
   return @: order: 1, subclass, post
@@ -31,29 +37,30 @@ export default function(plugin_options) ::
     if null==packetParser || ! packetParser.isPacketParser() ::
       throw new TypeError @ `Invalid packetParser for plugin`
     
-    FabricHub_PI.prototype.endpoint =
+    FabricHub_PI.prototype[plugin_name] =
       bindEndpointApi @ packetParser
 
   function post(hub) ::
-    return hub.endpoint = hub.endpoint(hub)
+    return hub[plugin_name] = hub[plugin_name](hub)
 
   function bindEndpointApi(packetParser) ::
     const protocols = init_protocol @ packetParser, @{} random_id, json_pack
-    const Sink = SinkBase.forProtocols(protocols)
-    const MsgCtx = MsgCtxBase.forProtocols(protocols)
-    const Endpoint = EndpointBase.forProtocols(protocols)
-    const EPTarget = EPTargetBase.forProtocols(protocols)
 
-    plugin_options.subclass @:
-      Endpoint, EPTarget, Sink, MsgCtx, protocols
+    const {Endpoint, EPTarget, Sink, MsgCtx} =
+      plugin_options.subclass @:
+        protocols,
+        Sink: SinkBase.forProtocols(protocols)
+        MsgCtx: MsgCtxBase.forProtocols(protocols)
+        Endpoint: EndpointBase.subclass({createMap})
+        EPTarget: EPTargetBase.subclass(protocols)
 
     return function(hub) ::
+      const resolveRoute = hub.bindRouteDispatch @ null, createCacheMap()
       return Object.assign @ endpoint, @: create, server: endpoint, client
 
       function client(...args) ::
-        const msg_ctx = MsgCtx.from @ null, hub
-        return 0 !== args.length
-          ? msg_ctx.with(...args) : msg_ctx
+        const msg_ctx = new MsgCtx @ null, resolveRoute
+        return 0 !== args.length ? msg_ctx.with(...args) : msg_ctx
 
       function endpoint(on_init) ::
         const targets = hub.router.targets
@@ -62,7 +69,8 @@ export default function(plugin_options) ::
         return create @ id_target, on_init
 
       function create(id_target, on_init) ::
-        const msg_ctx = MsgCtx.from @ id_target, hub
+        const from_id = @{} id_target, id_router: hub.router.id_self
+        const msg_ctx = new MsgCtx @ from_id, resolveRoute
         const ep_tgt = new EPTarget(msg_ctx.from_id)
         const ep = new Endpoint(msg_ctx, ep_tgt)
 
