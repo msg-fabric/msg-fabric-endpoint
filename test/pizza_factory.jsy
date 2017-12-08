@@ -57,12 +57,13 @@ const pizza_place = hub.endpoint @ ep => ::
       'red sauce': 10
       
     return @{}
-      on_msg({msg, info}) ::
+      on_msg({msg, reply}) ::
         console.log @ 'storage msg', msg
-        const {ingredient} = msg
-        const hasOne = 0 < freezer[ingredient]--
-        
-        ep.to(info).send @: hasOne, ingredient
+        if reply.expected ::
+          const {ingredient} = msg
+          const hasOne = 0 < freezer[ingredient]--
+          
+          reply.send @: hasOne, ingredient
           
 
   return @{}

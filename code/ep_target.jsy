@@ -10,7 +10,7 @@ export default class EPTarget ::
       id_target: @{} enumerable: true, value: id.id_target
 
     if msg_ctx ::
-      bindCtxProps @ props, () =>
+      bindCtxProps @ props, msg_info, () =>
         msg_ctx.to(this, msg_info).fast_json
     return Object.defineProperties @ this, props
 
@@ -50,10 +50,13 @@ export default class EPTarget ::
       return value
 
 
-function bindCtxProps(props, init) ::
+function bindCtxProps(props, msg_info, init) ::
   let ctx
   props.send = @{} get() :: return (ctx || (ctx = init())).send
   props.query = @{} get() :: return (ctx || (ctx = init())).query
+  if msg_info && msg_info.msgid ::
+    // reads as "reply.expected"
+    props.expected = @{} value: true
 
 
 const token = '\u03E0' // 'Ϡ'
