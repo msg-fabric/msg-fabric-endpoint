@@ -44,18 +44,18 @@ export default class Endpoint ::
 
       recvCtrl: (msg, info) => ::
         traffic(info.from_id, 'ctrl')
-        const rmsg = this.recvCtrl(msg, info)
-
         const reply = by_token.get(info.token)
+        const rmsg = this.recvCtrl(msg, info, reply)
+
         if undefined !== reply ::
-          Promise.resolve({rmsg, msg, info}).then(reply)
+          Promise.resolve(rmsg || {msg, info}).then(reply)
         else return rmsg
 
       recvMsg: (msg, info) => ::
         traffic(info.from_id, 'msg')
-        const rmsg = this.recvMsg(msg, info)
-
         const reply = by_token.get(info.token)
+        const rmsg = this.recvMsg(msg, info, reply)
+
         if undefined !== reply ::
           Promise.resolve(rmsg).then(reply)
         else return rmsg
@@ -64,18 +64,20 @@ export default class Endpoint ::
         traffic(info.from_id, 'stream')
       recvStream: (msg, info) => ::
         traffic(info.from_id, 'stream')
-        const rstream = this.recvStream(msg, info)
-
         const reply = by_token.get(info.token)
+        const rstream = this.recvStream(msg, info, reply)
+
         if undefined !== reply ::
           Promise.resolve(rstream).then(reply)
         return rstream
 
   recvTraffic(from_id, traffic, ts) ::
-  recvCtrl(msg, info) ::
-  recvMsg(msg, info) ::
+  recvCtrl(msg, info, is_reply) ::
+    if is_reply :: return msg
+  recvMsg(msg, info, is_reply) ::
+    if is_reply :: return msg
     return @{} msg, info, reply: this.asReply(info)
-  recvStream(msg, info) ::
+  recvStream(msg, info, is_reply) ::
     console.warn @ `Unhandle recv stream: ${info}`
     return null
     /* return @{} msg, info
@@ -98,15 +100,22 @@ export default class Endpoint ::
     return monitor
 
   initReplyPromise(token, ms_timeout) ::
-    const ans = new Promise @ (resolve, reject) => ::
+    let reject
+    const ans = new Promise @ (resolve, reject_) => ::
       this.by_token.set @ token, resolve
-      if ms_timeout ::
-        const tid = setTimeout(timeout, ms_timeout)
-        if tid.unref :: tid.unref()
-        function timeout() :: reject @ new this.ReplyTimeout
+      reject = reject_
 
-    return sent => ::
-      ans.sent = sent
+    if ms_timeout ::
+      const timeout = () => reject @ new this.ReplyTimeout
+      const tid = setTimeout(timeout, ms_timeout)
+      if tid.unref :: tid.unref()
+      function clear() :: clearTimeout(tid)
+      ans.then @ clear, clear
+
+    return res => ::
+      if res && res.catch ::
+        ans.sent = res
+        res.catch(reject)
       return ans
 
 

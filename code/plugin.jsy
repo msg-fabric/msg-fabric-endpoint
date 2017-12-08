@@ -55,11 +55,11 @@ export default function(plugin_options) ::
         EPTarget: EPTargetBase.subclass(protocols)
 
     return function(hub) ::
-      const resolveRoute = hub.bindRouteDispatch @ null, createCacheMap()
+      const resolveRouteChannel = hub.bindRouteChannel @ null, createCacheMap()
       return Object.assign @ endpoint, @: create, server: endpoint, client
 
       function client(...args) ::
-        const msg_ctx = new MsgCtx @ null, resolveRoute
+        const msg_ctx = new MsgCtx @ null, resolveRouteChannel
         return 0 !== args.length ? msg_ctx.to(...args) : msg_ctx
 
       function endpoint(on_init) ::
@@ -70,27 +70,32 @@ export default function(plugin_options) ::
 
       function create(id_target, on_init) ::
         const from_id = @{} id_target, id_router: hub.router.id_self
-        const msg_ctx = new MsgCtx @ from_id, resolveRoute
+        const msg_ctx = new MsgCtx @ from_id, resolveRouteChannel
         const ep_tgt = new EPTarget(msg_ctx.from_id)
         const ep = new Endpoint(msg_ctx, ep_tgt)
 
-        const target = on_init(ep, hub)
-        const on_msg = (target.on_msg || target).bind(target)
-        const on_error = (target.on_error || default_on_error).bind(target)
-        const on_shutdown = (target.on_shutdown || default_on_shutdown).bind(target)
-
-        const json_unpack = target.json_unpack
-          ? target.json_unpack.bind(target)
-          : EPTarget.jsonUnpack(msg_ctx)
-
-        const sink = new Sink @ json_unpack
-        sink.register @ ep, hub, id_target,
-          @{} on_msg, on_error, on_shutdown
-
-        let ready = Promise.resolve(target)
-        if target.on_ready ::
-          ready = ready.then @ target => target.on_ready()
+        const ready = Promise
+          .resolve @ on_init(ep, hub)
+          .then @ on_ready
 
         return Object.defineProperties @ ep_tgt, @{}
           ready: @{} value: ready.then @ () => ep_tgt
+
+        function on_ready(target) ::
+          if null == target ::
+            throw new TypeError @ `Expected endpoint init to return a closure or interface`
+
+          const on_msg = (target.on_msg || target).bind(target)
+          const on_error = (target.on_error || default_on_error).bind(target)
+          const on_shutdown = (target.on_shutdown || default_on_shutdown).bind(target)
+
+          const json_unpack = target.json_unpack
+            ? target.json_unpack.bind(target)
+            : EPTarget.jsonUnpack(msg_ctx)
+
+          const sink = new Sink @ json_unpack
+          sink.register @ ep, hub, id_target,
+            @{} on_msg, on_error, on_shutdown
+
+          return target.on_ready ? target.on_ready() : target
 

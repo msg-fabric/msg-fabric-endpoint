@@ -14,7 +14,7 @@ export default class MsgCtx ::
     delete ctx.from_id; delete ctx.id_router; delete ctx.id_target
     return `«MsgCtx ${JSON.stringify(ctx)}»`
 
-  constructor(from_id, resolveRoute) ::
+  constructor(from_id, resolveRouteChannel) ::
     if null !== from_id ::
       const {id_target, id_router} = from_id
       from_id = Object.freeze @: id_target, id_router
@@ -24,7 +24,7 @@ export default class MsgCtx ::
       _root_: @: value: this
       from_id: @: value: from_id
       ctx: @: value: ctx
-      resolveRoute: @: value: resolveRoute
+      resolveRouteChannel: @: value: resolveRouteChannel
 
   withEndpoint(endpoint) ::
     return Object.defineProperties @ this, @{}
@@ -33,6 +33,8 @@ export default class MsgCtx ::
 
   ping(token=true) :: return this._invoke_ex @ this._msgCodecs.control.ping, [], token
   send(...args) :: return this._invoke_ex @ this._codec.send, args
+  query(...args) :: return this._invoke_ex @ this._codec.send, args, true
+
   stream(...args) :: return this._invoke_ex @ this._codec.stream, args
   invoke(key, ...args) :: return this._invoke_ex @ this._codec[key], args
   bindInvoke(fnOrKey, token) ::
@@ -41,12 +43,12 @@ export default class MsgCtx ::
 
   _invoke_ex(invoke, args, token) ::
     const obj = Object.assign @ {}, this.ctx
-    if undefined === token :: token = obj.token
+    if null == token :: token = obj.token
+    else obj.token = token
 
     this.assertMonitor()
-    const chan = this.resolveRoute(obj.id_router)
+    const chan = this.resolveRouteChannel(obj.id_router)
     if true !== token ::
-      obj.token = token
       return invoke @ chan, obj, ...args
 
     else ::
@@ -54,8 +56,9 @@ export default class MsgCtx ::
       const reply = this.endpoint.initReply(token, this)
       return reply @ invoke @ chan, obj, ...args
 
-
   get to() :: return (tgt, ...args) => ::
+    if null == tgt :: throw new Error @ `Null target endpoint`
+
     const self = this.clone()
 
     const ctx = self.ctx
@@ -86,9 +89,12 @@ export default class MsgCtx ::
   with(...args) ::
     const ctx = this.ctx
     for let tgt of args ::
-      const {token, msgid} = tgt
-      if undefined !== token :: ctx.token = token
-      if undefined !== msgid :: ctx.msgid = msgid
+      if true === tgt || false === tgt ::
+        ctx.token = tgt
+      else if null != tgt ::
+        const {token, msgid} = tgt
+        if undefined !== token :: ctx.token = token
+        if undefined !== msgid :: ctx.msgid = msgid
     return this
 
   withReply() ::
@@ -162,8 +168,9 @@ export default class MsgCtx ::
     // bind send_json as frequently used fast-path
     const json_send = msgCodecs.json.send
     Object.defineProperties @ this.prototype, @:
-      send_json: @{} get() ::
-        return (...args) => this._invoke_ex @ json_send, args
+      fast_json: @{} get() :: return @:
+        send: (...args) => this._invoke_ex @ json_send, args
+        query: (...args) => this._invoke_ex @ json_send, args, true
 
     return this
 

@@ -4,16 +4,14 @@ export default class EPTarget ::
     Object.assign @ EPTarget.prototype, extensions
     return EPTarget
 
-  constructor(id, msg_ctx) ::
+  constructor(id, msg_ctx, msg_info) ::
     const props = @{}
       id_router: @{} enumerable: true, value: id.id_router
       id_target: @{} enumerable: true, value: id.id_target
 
     if msg_ctx ::
-      let fn
-      props.send = @{} get: () =>
-        fn || @ fn = msg_ctx.to(this).send_json
-
+      bindCtxProps @ props, () =>
+        msg_ctx.to(this, msg_info).fast_json
     return Object.defineProperties @ this, props
 
 
@@ -23,9 +21,11 @@ export default class EPTarget ::
   isEPTarget() :: return true
 
   static json_as_reply(msg_ctx) ::
-    return obj => this.from_json(obj.from_id, msg_ctx)
-  static from_json(id, msg_ctx) ::
-    if id :: return new this(id, msg_ctx)
+    return info =>
+      this.from_json @ info.from_id, msg_ctx, info
+
+  static from_json(id, msg_ctx, msg_info) ::
+    if id :: return new this(id, msg_ctx, msg_info)
 
   static jsonUnpack(msg_ctx, xformByKey) ::
     xformByKey = Object.create(xformByKey || null)
@@ -48,6 +48,12 @@ export default class EPTarget ::
         if undefined !== vfn ::
           return vfn @ value
       return value
+
+
+function bindCtxProps(props, init) ::
+  let ctx
+  props.send = @{} get() :: return (ctx || (ctx = init())).send
+  props.query = @{} get() :: return (ctx || (ctx = init())).query
 
 
 const token = '\u03E0' // 'Ϡ'

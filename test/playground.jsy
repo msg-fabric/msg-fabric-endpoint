@@ -21,8 +21,9 @@ async function main() ::
   function ep_aaa(ep) ::
     debug @ 'AAA initialize'
 
-    ep.recvCtrl = function(msg, info) ::
+    ep.recvCtrl = function(msg, info, is_reply) ::
       debug @ 'AAA CTRL', msg
+      if is_reply :: return msg
 
     ep.recvStream = function(msg, info) ::
       debug @ '\nAAA NEW STREAM:', msg
@@ -41,14 +42,12 @@ async function main() ::
       on_ready() ::
         debug @ 'AAA ready'
 
-        const token = 1942
-        debug @ 'AAA sending "hello" with token ${token}'
-        ep.to(tgt_bbb, {token})
-          .send @: say: 'hello'
+        debug @ 'AAA sending "hello"'
+        ep.to(tgt_bbb).send @: say: 'hello'
 
         debug @ 'SEND ping'
         ep.to(tgt_bbb).ping()
-          .then @ ans => debug("AAA CTRL pong() reply:", ans.msg)
+          .then @ ans => debug("AAA CTRL pong() reply:", ans)
 
       on_msg({msg, reply}, pkt) ::
         debug()
@@ -61,8 +60,9 @@ async function main() ::
   function ep_bbb(ep) ::
     debug @ 'BBB initialize'
 
-    ep.recvCtrl = function(msg, info) ::
+    ep.recvCtrl = function(msg, info, is_reply) ::
       debug @ 'BBB CTRL', msg
+      if is_reply :: return msg
 
     return @{}
       on_ready() ::

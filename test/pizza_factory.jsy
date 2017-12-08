@@ -9,12 +9,12 @@ const pizza_place = hub.endpoint @ ep => ::
       async on_msg({msg, info}) ::
         console.log @ 'assemble msg', msg
 
-        const stg = ep.to(storage).withReply()
+        const stg = ep.to(storage)
 
         Promise.all @ Array.from @
           msg.order.ingredients
           async ingredient => ::
-            const {msg: res} = await stg.send @: ingredient
+            const res = await stg.query @: ingredient
             if res.hasOne :: return res.ingredient
             else throw new Error @ `Out of "${ingredient}"`
         .then @
