@@ -26,14 +26,14 @@ export default function control_protocol(inbound, high, shared) ::
   function recv_ping(pkt, sink, router) ::
     ping_frame.unpack(pkt)
     pkt.body = pkt.body_json()
-    _send_pong @ pkt.body, pkt, sink, router
+    _send_pong @ pkt.body, pkt, router
     return sink.recvCtrl(pkt.body, pkt.info)
 
-  function _send_pong({ts0}, pkt_ping, sink, router) ::
-    const {msgid, from_id:r_id} = pkt_ping.info
-    const {id_router, id_target} = r_id
-    const obj = @{} id_router, id_target
-      from_id: sink.from_id, msgid
+  function _send_pong({ts0}, pkt_ping, router) ::
+    const {msgid, id_target, id_router, from_id:r_id} = pkt_ping.info
+    const obj = @{} msgid
+      from_id: @{} id_target, id_router
+      id_router: r_id.id_router, id_target: r_id.id_target
       body: JSON.stringify @:
         op: 'pong', ts0, ts1: new Date()
 
