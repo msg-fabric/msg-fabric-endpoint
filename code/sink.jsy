@@ -4,9 +4,6 @@ export default class Sink ::
     Sink.prototype._protocol = inbound
     return Sink
 
-  constructor(json_unpack) ::
-    this.json_unpack = json_unpack
-
   register(endpoint, hub, id_target, handlers) ::
     const unregister = () => hub.router.unregisterTarget(id_target)
 
@@ -65,3 +62,6 @@ export default class Sink ::
 
   deleteStateFor(msgid) ::
     return this.by_msgid.delete(msgid)
+
+  json_unpack(obj) :: throw new Error @ `Endpoint bindSink() responsibility`
+

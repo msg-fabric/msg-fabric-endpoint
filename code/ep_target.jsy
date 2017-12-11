@@ -1,4 +1,5 @@
-export default class EPTarget ::
+export default EPTarget
+export class EPTarget ::
   constructor(id, msg_ctx, msg_info) ::
     const props = @{}
       id_router: @{} enumerable: true, value: id.id_router

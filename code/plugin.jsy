@@ -95,16 +95,9 @@ export default function(plugin_options) ::
           handlers.on_error = (target.on_error || default_on_error).bind(target, ep)
           handlers.on_shutdown = (target.on_shutdown || default_on_shutdown).bind(target, ep)
 
-          const json_unpack = target.json_unpack
-            ? target.json_unpack.bind(target)
-            : EPTarget.jsonUnpack(msg_ctx)
+          new Sink().register @ ep, hub, id_target, handlers
 
-          const sink = new Sink @ json_unpack
-          sink.register @ ep, hub, id_target, handlers
-
-          return target.on_ready
-            ? target.on_ready(ep, hub)
-            : target
+          return target.on_ready ? target.on_ready(ep, hub) : target
 
 
 

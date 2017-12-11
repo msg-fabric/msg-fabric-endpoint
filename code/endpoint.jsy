@@ -1,3 +1,5 @@
+import {ep_encode, EPTarget} from './ep_target.jsy'
+
 export default class Endpoint ::
   static subclass(extensions) ::
     class Endpoint extends this ::
@@ -14,6 +16,7 @@ export default class Endpoint ::
     Object.defineProperties @ this, @:
       id: @{} value: id, enumerable: true
       to: @{} value: msg_ctx.to
+      msg_ctx: @{} value: msg_ctx
       encode: @{} value: ep_tgt.encode
       asSender: @{} value: asSender
 
@@ -40,6 +43,7 @@ export default class Endpoint ::
 
     return @{}
       by_msgid: this.createStateMap()
+      json_unpack: EPTarget.jsonUnpack(this.msg_ctx)
 
       recvCtrl: (msg, info) => ::
         traffic(info.from_id, 'ctrl')
