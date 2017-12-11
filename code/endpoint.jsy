@@ -22,6 +22,7 @@ export default class Endpoint ::
   createStateMap() :: return this.createMap()
   createReplyMap() :: return this.createMap()
   createTrafficMap() :: return this.createMap()
+  createRouteCacheMap() :: return this.createMap()
 
   bindSink(sink) ::
     const by_token = this.createReplyMap()
@@ -87,8 +88,8 @@ export default class Endpoint ::
          on_error(err, pkt) :: console.log @ err
     */
 
-  initReply(token, msg_ctx) ::
-    return this.initReplyPromise @ token, msg_ctx.ms_timeout
+  initReply(token, p_sent, msg_ctx) ::
+    return this.initReplyPromise @ token, p_sent, msg_ctx
 
   initMonitor(id_target) ::
     const key = id_target.id_target || id_target
@@ -99,28 +100,15 @@ export default class Endpoint ::
       this.by_traffic.set @ key, monitor
     return monitor
 
-  initReplyPromise(token, ms_timeout) ::
-    let reject
-    const ans = new Promise @ (resolve, reject_) => ::
+  initReplyPromise(token, p_sent, msg_ctx) ::
+    let reply = new Promise @ (resolve, reject) => ::
       this.by_token.set @ token, resolve
-      reject = reject_
+      p_sent.catch @ reject
 
-    if ms_timeout ::
-      const timeout = () => reject @ new this.ReplyTimeout
-      const tid = setTimeout(timeout, ms_timeout)
-      if tid.unref :: tid.unref()
-      function clear() :: clearTimeout(tid)
-      ans.then @ clear, clear
+    if msg_ctx ::
+      reply = msg_ctx.withRejectTimeout(reply)
 
-    return res => ::
-      if res && res.catch ::
-        ans.sent = res
-        res.catch(reject)
-      return ans
-
-
-class ReplyTimeout extends Error ::
-
-Object.assign @ Endpoint.prototype, @{}
-  ReplyTimeout
+    const clear = () => this.by_token.delete @ token
+    reply.then @ clear, clear
+    return reply
 

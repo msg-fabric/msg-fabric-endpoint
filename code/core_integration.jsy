@@ -1,0 +1,29 @@
+export function bindRouteChannel(hub, cache) ::
+  const channel = hub.connect_self()
+  const {resolveRoute, routes} = hub.router
+  return cache ? cacheRouteChannel : resolveRouteChannel
+
+  function cacheRouteChannel(id_router) ::
+    let chan = cache.get(id_router)
+    if undefined === chan ::
+      chan = resolveRouteChannel(id_router)
+      cache.set(id_router, chan)
+    return chan
+
+  function resolveRouteChannel(id_router) ::
+    let route, disco = resolveRoute(id_router)
+    return async pkt => ::
+      try ::
+        if null !== disco ::
+          route = await disco
+          disco = null
+
+        if null == route || ! routes.has(id_router) ::
+          throw new Error @ "Unresolvable route"
+
+        await route @ pkt, channel
+        return true
+      catch err ::
+        disco = route = null
+        if cache :: cache.delete(id_router)
+        throw err

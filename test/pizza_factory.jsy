@@ -14,16 +14,17 @@ const pizza_place = hub.endpoint @ ep => ::
         Promise.all @ Array.from @
           msg.order.ingredients
           async ingredient => ::
-            const res = await stg.query @: ingredient
+            const {reply} = await stg.query @: ingredient
+            const res = await reply
             if res.hasOne :: return res.ingredient
             else throw new Error @ `Out of "${ingredient}"`
         .then @
-          ingredients => ::
-            ep.to(cook).send @:
+          async ingredients => ::
+            await ep.to(cook).send @:
               order: msg.order
 
-          err => ::
-            ep.to(info).send @:
+          async err => ::
+            await ep.to(info).send @:
               order: msg.order
               canceled:true
               reason: 'Out of ingredients'
@@ -31,21 +32,21 @@ const pizza_place = hub.endpoint @ ep => ::
       
   const cook = hub.endpoint @ ep => ::
     return @{}
-      on_msg({msg, info}) ::
+      async on_msg({msg, info}) ::
         console.log @ 'cook msg', msg
-        ep.to(qa).send @:
+        await ep.to(qa).send @:
           order: msg.order
         //throw new Error @ 'Oops!'
 
   const qa = hub.endpoint @ ep => ::
     return @{}
-      on_msg({msg, info}) ::
+      async on_msg({msg, info}) ::
         console.log @ 'qa msg', msg
-        ep.to(delivery).send @:
+        await ep.to(delivery).send @:
           order: msg.order
 
   const delivery = hub.endpoint @ ep =>
-    ({msg, info}) => ::
+    async ({msg, info}) => ::
       console.log @ 'out for delivery', @# msg.order.address
 
   const storage = hub.endpoint @ ep => ::
@@ -57,33 +58,33 @@ const pizza_place = hub.endpoint @ ep => ::
       'red sauce': 10
       
     return @{}
-      on_msg({msg, reply}) ::
+      async on_msg({msg, reply}) ::
         console.log @ 'storage msg', msg
         if reply.expected ::
           const {ingredient} = msg
           const hasOne = 0 < freezer[ingredient]--
           
-          reply.send @: hasOne, ingredient
+          await reply.send @: hasOne, ingredient
           
 
   return @{}
-    on_ready() ::
+    async on_ready() ::
       // This gets called after initialize. We can receive messages now, so set up what you need here.
       console.log @ 'pizza_place on_ready'
       
       
-    on_msg({msg, info}) ::
+    async on_msg({msg, info}) ::
       console.log @ 'pizza_place msg', msg, msg.ingredients
       if msg.ingredients ::
         console.log @ 'sending to assembly', assemble
-        ep.to(assemble).send @: order: msg
+        await ep.to(assemble).send @: order: msg
 
 
 
-const customer_order = () => ::
+const customer_order = async () => ::
   console.log @ "Customer phones in order:", pizza_place
-  hub.endpoint.client(pizza_place)
-    .send @: 
+  const c = hub.endpoint.client(pizza_place)
+  await c.send @: 
       ingredients: @# 'sausage', 'bacon', 'cheese', 'red sauce', 'thin crust'
       address: '123 2nd Ave North, Seattle, WA 98103'
 

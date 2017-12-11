@@ -45,16 +45,20 @@ export default class MsgCtx ::
     const obj = Object.assign @ {}, this.ctx
     if null == token :: token = obj.token
     else obj.token = token
+    if true === token ::
+      token = obj.token = this.random_id()
 
     this.assertMonitor()
     const chan = this.resolveRouteChannel(obj.id_router)
-    if true !== token ::
-      return invoke @ chan, obj, ...args
 
-    else ::
-      token = obj.token = this.random_id()
-      const reply = this.endpoint.initReply(token, this)
-      return reply @ invoke @ chan, obj, ...args
+    const res = invoke @ chan, obj, ...args
+    if ! token || 'function' !== typeof res.then :: return res
+
+    let p_sent  = res.then()
+    const reply = this.endpoint.initReply(token, p_sent, this)
+    p_sent = p_sent.then @ () => @: reply
+    p_sent.reply = reply
+    return p_sent
 
   get to() :: return (tgt, ...args) => ::
     if null == tgt :: throw new Error @ `Null target endpoint`
@@ -174,6 +178,21 @@ export default class MsgCtx ::
 
     return this
 
+
+  withRejectTimeout(p_reply) ::
+    return new Promise @ (resolve, reject) => ::
+      p_reply.then @ resolve, reject
+      p_reply.then @ clear, clear
+
+      const timeout = () => reject @ new this.ReplyTimeout
+      const tid = setTimeout(timeout, this.ms_timeout)
+      if tid.unref :: tid.unref()
+
+      function clear() :: clearTimeout @ tid
+
+
+class ReplyTimeout extends Error ::
+
 Object.assign @ MsgCtx.prototype, @{}
-  ms_timeout: 5000
+  ReplyTimeout, ms_timeout: 5000
 

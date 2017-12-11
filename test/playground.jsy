@@ -39,22 +39,22 @@ async function main() ::
           debug @ 'STREAM ERR', err, pkt.info
 
     return @{}
-      on_ready() ::
+      async on_ready() ::
         debug @ 'AAA ready'
 
         debug @ 'AAA sending "hello"'
-        ep.to(tgt_bbb).send @: say: 'hello'
+        await ep.to(tgt_bbb).send @: say: 'hello'
 
         debug @ 'SEND ping'
         ep.to(tgt_bbb).ping()
           .then @ ans => debug("AAA CTRL pong() reply:", ans)
 
-      on_msg({msg, reply}, pkt) ::
+      async on_msg({msg, reply}, pkt) ::
         debug()
         debug @ 'AAA recv:', msg, 'from:', reply
         debug()
         if msg.self_as_obj ::
-          msg.self_as_obj.send @:
+          await msg.self_as_obj.send @:
             bouncy: msg.self_as_obj
 
   function ep_bbb(ep) ::
@@ -65,7 +65,7 @@ async function main() ::
       if is_reply :: return msg
 
     return @{}
-      on_ready() ::
+      async on_ready() ::
         debug @ 'BBB ready'
 
       async on_msg({msg, info}, pkt) ::
@@ -75,7 +75,7 @@ async function main() ::
         debug()
 
         if msg.bouncy ::
-          msg.bouncy.send @: dbl_bounce: true
+          await msg.bouncy.send @: dbl_bounce: true
           //ep.to(msg.bouncy).send @: dbl_bounce: true
           return
         else if msg.dbl_bounce ::
@@ -88,11 +88,11 @@ async function main() ::
           reply.monitor().then @ monitor =>
             console.log @ 'Monitor expired:', monitor
         if 1 ::
-          reply.send @: reply: 'salut', self_as_obj: ep
+          await reply.send @: reply: 'salut', self_as_obj: ep
 
         if 1 ::
-          reply.send @: reply: 'Salut! '.repeat(1200)
-          reply.send @: reply: 'ABCDEF '.repeat(1200)
+          await reply.send @: reply: 'Salut! '.repeat(1200)
+          await reply.send @: reply: 'ABCDEF '.repeat(1200)
 
         if 1 ::
           await sleep(10)
