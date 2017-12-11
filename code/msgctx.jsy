@@ -7,10 +7,20 @@ export default class MsgCtx ::
     MsgCtx.withCodecs @ codecs
     return MsgCtx
 
-  constructor(ep_tgt, resolveRouteChannel) ::
+  static forHub(hub, channel) ::
+    const {sendRaw} = channel
+
+    class MsgCtx extends this ::
+    MsgCtx.prototype.chan_send = async pkt => ::
+      await sendRaw(pkt)
+      return true
+
+    return MsgCtx
+
+
+  constructor(ep_tgt) ::
     const props = @{}
       _root_: @: value: this
-      resolveRouteChannel: @: value: resolveRouteChannel
 
     if null !== ep_tgt ::
       const {id_target, id_router} = ep_tgt
@@ -45,9 +55,8 @@ export default class MsgCtx ::
       token = obj.token = this.random_id()
 
     this.assertMonitor()
-    const chan = this.resolveRouteChannel(obj.id_router)
 
-    const res = invoke @ chan, obj, ...args
+    const res = invoke @ this.chan_send, obj, ...args
     if ! token || 'function' !== typeof res.then :: return res
 
     let p_sent  = res.then()

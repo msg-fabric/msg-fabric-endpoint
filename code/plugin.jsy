@@ -1,9 +1,8 @@
 import init_protocol from './protocol/index.jsy'
-import {bindRouteChannel} from './core_integration.jsy'
-import EndpointBase from './endpoint.jsy'
-import EPTargetBase from './ep_target.jsy'
+import EPTarget from './ep_target.jsy'
 import SinkBase from './sink.jsy'
 import MsgCtxBase from './msgctx.jsy'
+import EndpointBase from './endpoint.jsy'
 
 const default_plugin_options = @:
   plugin_name: 'endpoint'
@@ -23,7 +22,6 @@ const default_plugin_options = @:
 
   json_pack: JSON.stringify
   createMap() :: return new Map() // LRUMap, HashbeltMap
-  createRouteCache() :: return new Map() // LRUMap, HashbeltMap
 
 
 export default function(plugin_options) ::
@@ -33,7 +31,7 @@ export default function(plugin_options) ::
     on_msg: default_on_msg
     on_error: default_on_error
     on_shutdown: default_on_shutdown
-    createMap, createRouteCache
+    createMap
   = plugin_options
 
   return @: order: 1, subclass, post
@@ -52,16 +50,16 @@ export default function(plugin_options) ::
   function bindEndpointApi(packetParser) ::
     const protocols = init_protocol @ packetParser, @{} random_id, json_pack
 
-    const {Endpoint, EPTarget, Sink, MsgCtx} =
+    const {Endpoint, Sink, MsgCtx: MsgCtx_pi} =
       plugin_options.subclass @:
         protocols,
         Sink: SinkBase.forProtocols(protocols)
         MsgCtx: MsgCtxBase.forProtocols(protocols)
         Endpoint: EndpointBase.subclass({createMap})
-        EPTarget: EPTargetBase.subclass({})
 
     return function(hub) ::
-      let _client_rrc
+      const channel = hub.connect_self()
+      const MsgCtx = MsgCtx_pi.forHub(hub, channel)
       return Object.assign @ endpoint, @: create, server: endpoint, client, clientEndpoint
 
 
@@ -75,7 +73,7 @@ export default function(plugin_options) ::
         const handlers = Object.create(null)
         const id = @{} id_target, id_router: hub.router.id_self
         const ep_tgt = new EPTarget @ id
-        const msg_ctx = new MsgCtx @ ep_tgt, bindRouteChannel(hub, createRouteCache(true))
+        const msg_ctx = new MsgCtx @ ep_tgt
         const ep = new Endpoint @ id, msg_ctx, ep_tgt
 
         const ready = Promise
@@ -130,9 +128,6 @@ export default function(plugin_options) ::
         if 1 === args.length && 'function' === typeof args[0] ::
           return clientEndpoint(args[0])
 
-        if undefined === _client_rrc ::
-          _client_rrc = bindRouteChannel(hub, createRouteCache(false))
-
-        const msg_ctx = new MsgCtx @ null, _client_rrc
+        const msg_ctx = new MsgCtx @ null
         return 0 !== args.length ? msg_ctx.to(...args) : msg_ctx
 
