@@ -18,18 +18,12 @@ export default class MsgCtx ::
     return MsgCtx
 
 
-  constructor(ep_tgt) ::
-    const props = @{}
-      _root_: @: value: this
-
-    if null !== ep_tgt ::
-      const {id_target, id_router} = ep_tgt
+  constructor(id) ::
+    if null !== id ::
+      const {id_target, id_router} = id
       const from_id = Object.freeze @: id_target, id_router
-      props.from_id = @{} value: from_id
-      props.ctx = @{} value: {from_id}
-      props.ep_decode = @{} value: ep_tgt.ep_decode
+      this.ctx = @{} from_id
 
-    return Object.defineProperties @ this, props
 
   withEndpoint(endpoint) ::
     return Object.defineProperties @ this, @{}
@@ -75,20 +69,15 @@ export default class MsgCtx ::
       ctx.id_target = tgt
       ctx.id_router = ctx.from_id.id_router
     else ::
-      const {from_id: reply_id, id_target, id_router, token, msgid} = this.ep_decode(tgt) || tgt
+      tgt = ep_decode(tgt) || tgt
+      const {from_id: reply_id, id_target, id_router, token, msgid} = tgt
 
       if undefined !== id_target ::
-        if undefined === id_router ::
-          if ! ctx.id_router ::
-            // implicitly on the same router
-            ctx.id_router = ctx.from_id.id_router
-        else ctx.id_router = id_router
         ctx.id_target = id_target
-      else if undefined !== id_router ::
-        throw new Error @ `Passing 'id_router' requires 'id_target'`
+        ctx.id_router = id_router
       else if undefined !== reply_id && ! ctx.id_target ::
-        ctx.id_router = reply_id.id_router
         ctx.id_target = reply_id.id_target
+        ctx.id_router = reply_id.id_router
 
       if undefined !== token :: ctx.token = token
       if undefined !== msgid :: ctx.msgid = msgid
@@ -109,9 +98,6 @@ export default class MsgCtx ::
   withReply() ::
     return this.clone @: token: true
 
-  reset(...args) ::
-    return Object.create @ this._root_, @{}
-      ctx: @: value: Object.assign @ {}, this.ctx, ...args
   clone(...args) ::
     return Object.create @ this, @{}
       ctx: @: value: Object.assign @ {}, this.ctx, ...args
@@ -201,5 +187,4 @@ class ReplyTimeout extends Error ::
 
 Object.assign @ MsgCtx.prototype, @{}
   ReplyTimeout, ms_timeout: 5000
-  ep_decode
 
