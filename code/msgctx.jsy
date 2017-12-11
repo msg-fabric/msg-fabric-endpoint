@@ -31,9 +31,10 @@ export default class MsgCtx ::
       endpoint: @{} value: endpoint
 
 
-  ping(token=true) :: return this._invoke_ex @ this._msgCodecs.control.ping, [], token
-  send(...args) :: return this._invoke_ex @ this._codec.send, args
-  query(...args) :: return this._invoke_ex @ this._codec.send, args, true
+  ping(token=true) :: return this._invoke_ex(this._msgCodecs.control.ping, [], token)
+  send(...args) :: return this._invoke_ex(this._codec.send, args)
+  sendQuery(...args) :: return this._invoke_ex(this._codec.send, args, true)
+  query(...args) :: return this._invoke_ex(this._codec.send, args, true).reply
 
   stream(...args) :: return this._invoke_ex @ this._codec.stream, args
   invoke(key, ...args) :: return this._invoke_ex @ this._codec[key], args
@@ -173,8 +174,9 @@ export default class MsgCtx ::
     const json_send = msgCodecs.json.send
     Object.defineProperties @ this.prototype, @:
       fast_json: @{} get() :: return @:
-        send: (...args) => this._invoke_ex @ json_send, args
-        query: (...args) => this._invoke_ex @ json_send, args, true
+        send: (...args) => this._invoke_ex(json_send, args)
+        sendQuery: (...args) => this._invoke_ex(json_send, args, true)
+        query: (...args) => this._invoke_ex(json_send, args, true).reply
 
     return this
 

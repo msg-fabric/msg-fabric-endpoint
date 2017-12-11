@@ -11,12 +11,12 @@ export default class Endpoint ::
 
   constructor(msg_ctx, ep_tgt) ::
     msg_ctx = msg_ctx.withEndpoint(this)
-    const asReply = ep_tgt.constructor.json_as_reply(msg_ctx)
+    const asSender = ep_tgt.constructor.json_as_sender(msg_ctx)
     Object.defineProperties @ this, @:
+      to: @{} value: msg_ctx.to
       from_id: @{} value: msg_ctx.from_id, enumerable: true
       toJSON: @{} value() :: return ep_tgt.toJSON()
-      to: @{} value: msg_ctx.to
-      asReply: @{} value: asReply
+      asSender: @{} value: asSender
 
   createMap() :: return new Map()
   createStateMap() :: return this.createMap()
@@ -77,7 +77,7 @@ export default class Endpoint ::
     if is_reply :: return msg
   recvMsg(msg, info, is_reply) ::
     if is_reply :: return msg
-    return @{} msg, info, reply: this.asReply(info)
+    return @{} msg, info, sender: this.asSender(info)
   recvStream(msg, info, is_reply) ::
     console.warn @ `Unhandle recv stream: ${info}`
     return null

@@ -47,7 +47,7 @@ async function main() ::
 
         debug @ 'SEND ping'
         ep.to(tgt_bbb).ping()
-          .then @ ans => debug("AAA CTRL pong() reply:", ans)
+          .reply.then @ ans => debug @ "AAA CTRL pong() reply:", ans
 
       async on_msg({msg, reply}, pkt) ::
         debug()

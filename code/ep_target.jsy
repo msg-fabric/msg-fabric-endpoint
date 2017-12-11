@@ -20,7 +20,7 @@ export default class EPTarget ::
   toJSON() :: return this.ep_encode(this)
   isEPTarget() :: return true
 
-  static json_as_reply(msg_ctx) ::
+  static json_as_sender(msg_ctx) ::
     return info =>
       this.from_json @ info.from_id, msg_ctx, info
 
@@ -55,8 +55,8 @@ function bindCtxProps(props, msg_info, init) ::
   props.send = @{} get() :: return (ctx || (ctx = init())).send
   props.query = @{} get() :: return (ctx || (ctx = init())).query
   if msg_info && msg_info.msgid ::
-    // reads as "reply.expected"
-    props.expected = @{} value: true
+    // reads as "sender.replyExpected"
+    props.replyExpected = @{} value: true
 
 
 const token = '\u03E0' // 'Ϡ'
