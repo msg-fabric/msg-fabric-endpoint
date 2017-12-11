@@ -1,4 +1,4 @@
-import {ep_encode, ep_decode} from './ep_target.jsy'
+import {ep_decode} from './ep_target.jsy'
 
 export default class MsgCtx ::
   static forProtocols({random_id, codecs}) ::
@@ -7,24 +7,19 @@ export default class MsgCtx ::
     MsgCtx.withCodecs @ codecs
     return MsgCtx
 
-  inspect() ::
-    const ctx = Object.assign({}, this.ctx)
-    ctx.from = ep_encode(ctx.from_id, true)
-    ctx.to = ep_encode(ctx, true)
-    delete ctx.from_id; delete ctx.id_router; delete ctx.id_target
-    return `«MsgCtx ${JSON.stringify(ctx)}»`
-
-  constructor(from_id, resolveRouteChannel) ::
-    if null !== from_id ::
-      const {id_target, id_router} = from_id
-      from_id = Object.freeze @: id_target, id_router
-
-    const ctx = {from_id}
-    Object.defineProperties @ this, @:
+  constructor(ep_tgt, resolveRouteChannel) ::
+    const props = @{}
       _root_: @: value: this
-      from_id: @: value: from_id
-      ctx: @: value: ctx
       resolveRouteChannel: @: value: resolveRouteChannel
+
+    if null !== ep_tgt ::
+      const {id_target, id_router} = ep_tgt
+      const from_id = Object.freeze @: id_target, id_router
+      props.from_id = @{} value: from_id
+      props.ctx = @{} value: {from_id}
+      props.ep_decode = @{} value: ep_tgt.ep_decode
+
+    return Object.defineProperties @ this, props
 
   withEndpoint(endpoint) ::
     return Object.defineProperties @ this, @{}
@@ -71,7 +66,7 @@ export default class MsgCtx ::
       ctx.id_target = tgt
       ctx.id_router = ctx.from_id.id_router
     else ::
-      const {from_id: reply_id, id_target, id_router, token, msgid} = ep_decode(tgt) || tgt
+      const {from_id: reply_id, id_target, id_router, token, msgid} = this.ep_decode(tgt) || tgt
 
       if undefined !== id_target ::
         if undefined === id_router ::
@@ -197,4 +192,5 @@ class ReplyTimeout extends Error ::
 
 Object.assign @ MsgCtx.prototype, @{}
   ReplyTimeout, ms_timeout: 5000
+  ep_decode
 

@@ -58,7 +58,7 @@ export default function(plugin_options) ::
         Sink: SinkBase.forProtocols(protocols)
         MsgCtx: MsgCtxBase.forProtocols(protocols)
         Endpoint: EndpointBase.subclass({createMap})
-        EPTarget: EPTargetBase.subclass(protocols)
+        EPTarget: EPTargetBase.subclass({})
 
     return function(hub) ::
       let _client_rrc
@@ -73,16 +73,17 @@ export default function(plugin_options) ::
 
       function create(id_target, on_init) ::
         const handlers = Object.create(null)
-        const from_id = @{} id_target, id_router: hub.router.id_self
-        const msg_ctx = new MsgCtx @ from_id, bindRouteChannel(hub, createRouteCache(true))
-        const ep_tgt = new EPTarget(msg_ctx.from_id)
-        const ep = new Endpoint(msg_ctx, ep_tgt)
+        const id = @{} id_target, id_router: hub.router.id_self
+        const ep_tgt = new EPTarget @ id
+        const msg_ctx = new MsgCtx @ ep_tgt, bindRouteChannel(hub, createRouteCache(true))
+        const ep = new Endpoint @ id, msg_ctx, ep_tgt
 
         const ready = Promise
           .resolve @ on_init(ep, hub)
           .then @ _after_init
-          .catch @ err =>
-            handlers.on_error @ err, @{} zone:'on_ready'
+
+        ready.catch @ err =>
+          handlers.on_error @ err, @{} zone:'on_ready'
 
         return Object.defineProperties @ ep_tgt, @{}
           ready: @{} value: ready.then @ () => ep_tgt

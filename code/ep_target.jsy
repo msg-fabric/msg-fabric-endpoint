@@ -8,6 +8,7 @@ export default class EPTarget ::
     const props = @{}
       id_router: @{} enumerable: true, value: id.id_router
       id_target: @{} enumerable: true, value: id.id_target
+      encode: @{} value: simple => this.ep_encode(id, simple)
 
     if msg_ctx ::
       bindCtxProps @ props, msg_info, () =>
@@ -15,9 +16,9 @@ export default class EPTarget ::
     return Object.defineProperties @ this, props
 
 
-  valueOf() :: return 0 | this.id_target
-  inspect() :: return `«EPTarget ${this.ep_encode(this, true)}»`
-  toJSON() :: return this.ep_encode(this)
+  valueOf() :: return this.id_target
+  inspect() :: return `«EPTarget ${this.encode(true)}»`
+  toJSON() :: return this.encode(false)
   isEPTarget() :: return true
 
   static json_as_sender(msg_ctx) ::
@@ -63,23 +64,27 @@ const token = '\u03E0' // 'Ϡ'
 EPTarget.token = token
 
 EPTarget.ep_encode = EPTarget.prototype.ep_encode = ep_encode
-export function ep_encode(from_id, simple) ::
-  let {id_router:r, id_target:t} = from_id
+export function ep_encode(id, simple) ::
+  let {id_router:r, id_target:t} = id
   r = (r>>>0).toString(36)
   t = (t>>>0).toString(36)
-  return simple
-    ? `${token} ${r}~${t}`
-    : @{} [token]: `${r}~${t}`
+  if simple ::
+    return `${token} ${r}~${t}`
+
+  const res = @{} [token]: `${r}~${t}`
+  Object.assign @ res, id
+  delete res.id_router; delete res.id_target
+  return res
 
 
 EPTarget.ep_decode = EPTarget.prototype.ep_decode = ep_decode
 export function ep_decode(v) ::
-  const from_id = 'string' === typeof v
+  const id = 'string' === typeof v
     ? v.split(token)[1]
     : v[token]
-  if ! from_id :: return
+  if ! id :: return
 
-  let [r,t] = from_id.split('~')
+  let [r,t] = id.split('~')
   if undefined === t :: return
   r = 0 | parseInt(r, 36)
   t = 0 | parseInt(t, 36)

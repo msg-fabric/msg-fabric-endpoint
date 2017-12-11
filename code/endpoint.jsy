@@ -1,21 +1,20 @@
-import {ep_encode} from './ep_target.jsy'
-
 export default class Endpoint ::
   static subclass(extensions) ::
     class Endpoint extends this ::
     Object.assign @ Endpoint.prototype, extensions
     return Endpoint
 
-  valueOf() :: return this.from_id
-  inspect() :: return `«Endpoint ${ep_encode(this.from_id, true)}»`
+  valueOf() :: return this.id.id_target
+  inspect() :: return `«Endpoint ${this.encode(true)}»`
+  toJSON() :: return this.encode(false)
 
-  constructor(msg_ctx, ep_tgt) ::
+  constructor(id, msg_ctx, ep_tgt) ::
     msg_ctx = msg_ctx.withEndpoint(this)
     const asSender = ep_tgt.constructor.json_as_sender(msg_ctx)
     Object.defineProperties @ this, @:
+      id: @{} value: id, enumerable: true
       to: @{} value: msg_ctx.to
-      from_id: @{} value: msg_ctx.from_id, enumerable: true
-      toJSON: @{} value() :: return ep_tgt.toJSON()
+      encode: @{} value: ep_tgt.encode
       asSender: @{} value: asSender
 
   createMap() :: return new Map()
@@ -40,7 +39,6 @@ export default class Endpoint ::
       this.recvTraffic(from_id, traffic, ts)
 
     return @{}
-      from_id: this.from_id
       by_msgid: this.createStateMap()
 
       recvCtrl: (msg, info) => ::

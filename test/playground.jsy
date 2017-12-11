@@ -19,7 +19,8 @@ async function main() ::
   debug()
 
   function ep_aaa(ep) ::
-    debug @ 'AAA initialize'
+    ep.id.uri = 'I am AAA'
+    debug @ 'AAA initialize', ep
 
     ep.recvCtrl = function(msg, info, is_reply) ::
       debug @ 'AAA CTRL', msg
@@ -58,7 +59,8 @@ async function main() ::
             bouncy: msg.self_as_obj
 
   function ep_bbb(ep) ::
-    debug @ 'BBB initialize'
+    ep.id.uri = 'I am BBB'
+    debug @ 'BBB initialize', ep
 
     ep.recvCtrl = function(msg, info, is_reply) ::
       debug @ 'BBB CTRL', msg
