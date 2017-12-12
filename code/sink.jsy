@@ -37,16 +37,17 @@ export default class Sink ::
         return void on_error @ err, @{} pkt, zone: 'protocol'
 
       if false === alive ::
-        return false // change while awaiting above…
+        return router.unregister
+
       try ::
-        return await on_msg @ msg, pkt
+        await on_msg @ msg, pkt
       catch err ::
         try ::
           var terminate = on_error @ err, @{} msg, pkt, zone: 'dispatch'
         finally ::
           if false !== terminate ::
             shutdown(err, {msg, pkt})
-            return false // signal unregister to msg-fabric-core/router
+            return router.unregister
 
   stateFor(pkt, ifAbsent) ::
     const msgid = pkt.info.msgid
