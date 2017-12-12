@@ -35,7 +35,6 @@ const pizza_place = hub.endpoint @ ep => ::
         console.log @ 'cook msg', msg
         await ep.to(qa).send @:
           order: msg.order
-        //throw new Error @ 'Oops!'
 
   const qa = hub.endpoint @ ep => ::
     return @{}

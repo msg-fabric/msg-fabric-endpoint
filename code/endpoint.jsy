@@ -1,4 +1,4 @@
-import {ep_encode, EPTarget} from './ep_target.jsy'
+import {ep_encode, ep_target, ep_json_unpack} from './ep_target.jsy'
 
 export default class Endpoint ::
   static subclass(extensions) ::
@@ -7,18 +7,13 @@ export default class Endpoint ::
     return Endpoint
 
   valueOf() :: return this.id.id_target
-  inspect() :: return `«Endpoint ${this.encode(true)}»`
-  toJSON() :: return this.encode(false)
+  inspect() :: return `«Endpoint ${ep_encode(this.id, true)}»`
+  toJSON() :: return ep_encode(this.id, false)
 
-  constructor(id, msg_ctx, ep_tgt) ::
-    msg_ctx = msg_ctx.withEndpoint(this)
-    const asSender = ep_tgt.constructor.json_as_sender(msg_ctx)
-    Object.defineProperties @ this, @:
-      id: @{} value: id, enumerable: true
-      to: @{} value: msg_ctx.to
-      msg_ctx: @{} value: msg_ctx
-      encode: @{} value: ep_tgt.encode
-      asSender: @{} value: asSender
+  constructor(id, msg_ctx) ::
+    Object.defineProperties @ this, @{}
+      id: @{} value: id
+      to: @{} value: msg_ctx.withEndpoint(this).to
 
   createMap() :: return new Map()
   createStateMap() :: return this.createMap()
@@ -43,7 +38,7 @@ export default class Endpoint ::
 
     return @{}
       by_msgid: this.createStateMap()
-      json_unpack: EPTarget.jsonUnpack(this.msg_ctx)
+      json_unpack: ep_json_unpack(this.to)
 
       recvCtrl: (msg, info) => ::
         traffic(info.from_id, 'ctrl')
@@ -74,6 +69,7 @@ export default class Endpoint ::
           Promise.resolve(rstream).then(reply)
         return rstream
 
+  asSender(info) :: return ep_target(info.from_id, this.to, info.msgid)
   recvTraffic(from_id, traffic, ts) ::
   recvCtrl(msg, info, is_reply) ::
     if is_reply :: return msg
@@ -84,9 +80,9 @@ export default class Endpoint ::
     console.warn @ `Unhandle recv stream: ${info}`
     return null
     /* return @{} msg, info
-         on_init(msg, pkt) :: return this
+         on_init(msg, pkt) :: // return this
          on_data(data, pkt) :: this.parts.push @ data
-         on_end(result, pkt) :: return this.parts.join('')
+         on_end(result, pkt) :: this.parts.join(''); // return this
          on_error(err, pkt) :: console.log @ err
     */
 

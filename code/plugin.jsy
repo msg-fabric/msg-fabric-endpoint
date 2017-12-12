@@ -72,19 +72,20 @@ export default function(plugin_options) ::
       function create(id_target, on_init) ::
         const handlers = Object.create(null)
         const id = @{} id_target, id_router: hub.router.id_self
-        const ep_tgt = new EPTarget @ id
         const msg_ctx = new MsgCtx @ id
-        const ep = new Endpoint @ id, msg_ctx, ep_tgt
+        const ep = new Endpoint @ id, msg_ctx
 
         const ready = Promise
           .resolve @ on_init(ep, hub)
           .then @ _after_init
 
-        ready.catch @ err =>
-          handlers.on_error @ err, @{} zone:'on_ready'
+        // Allow for both internal and external error handling by forking ready.catch
+        ready.catch @ err => handlers.on_error @ err, @{} zone:'on_ready'
 
-        return Object.defineProperties @ ep_tgt, @{}
-          ready: @{} value: ready.then @ () => ep_tgt
+        ::
+          const ep_tgt = new EPTarget(id)
+          return Object.defineProperties @ ep_tgt, @{}
+            ready: @{} value: ready.then @ () => ep_tgt
 
 
         function _after_init(target) ::
@@ -102,19 +103,13 @@ export default function(plugin_options) ::
 
 
       function clientEndpoint(on_ready) ::
-        let ep_tgt, done = new Promise @ (resolve, reject) => ::
-          ep_tgt = endpoint @ ep => @:
+        return new Promise @ (resolve, reject) =>
+          endpoint @ ep => @:
             async on_ready(ep, hub) ::
               resolve @ await on_ready(ep, hub)
               ep.shutdown()
-
-            on_shutdown(ep) :: reject()
             on_send_error(ep, err) :: reject(err)
-
-        return Object.assign @ ep_tgt, @{}
-          then(y,n) :: return done.then(y,n)
-          catch(n) :: return done.catch(n)
-          done
+            on_shutdown(ep, err) :: err ? reject(err) : resolve()
 
 
       function client(...args) ::

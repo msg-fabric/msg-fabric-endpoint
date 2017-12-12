@@ -29,11 +29,12 @@ async function main() ::
     ep.recvStream = function(msg, info) ::
       debug @ '\nAAA NEW STREAM:', msg
       const parts = msg.parts = []
-      return @{} msg, info
+      return @{} msg, info, sender: ep.asSender(info)
+        //on_init(msg) :: return this
         on_data(data, pkt) ::
           debug @ 'STREAM DATA', data
           parts.push @ data
-        on_end(res, pkt) ::
+        on_end() ::
           debug @ 'STREAM END'
           return this
         on_error(err, pkt) ::
@@ -50,9 +51,9 @@ async function main() ::
         ep.to(tgt_bbb).ping()
           .reply.then @ ans => debug @ "AAA CTRL pong() reply:", ans
 
-      async on_msg({msg, reply}, pkt) ::
+      async on_msg({msg, sender}, pkt) ::
         debug()
-        debug @ 'AAA recv:', msg, 'from:', reply
+        debug @ 'AAA recv:', msg, 'from:', sender
         debug()
         if msg.self_as_obj ::
           await msg.self_as_obj.send @:
@@ -83,6 +84,7 @@ async function main() ::
         else if msg.dbl_bounce ::
           return // stop here
 
+        console.log @ 'REPLY:', info
         const reply = ep.to(info)
 
         if 0 ::
@@ -90,15 +92,15 @@ async function main() ::
           reply.monitor().then @ monitor =>
             console.log @ 'Monitor expired:', monitor
         if 1 ::
-          await reply.send @: reply: 'salut', self_as_obj: ep
+          await reply.send @: text: 'salut', self_as_obj: ep
 
-        if 1 ::
-          await reply.send @: reply: 'Salut! '.repeat(1200)
-          await reply.send @: reply: 'ABCDEF '.repeat(1200)
+        if 0 ::
+          await reply.send @: text: 'Salut! '.repeat(1200)
+          await reply.send @: text: 'ABCDEF '.repeat(1200)
 
         if 1 ::
           await sleep(10)
-          const out = reply.stream({aStream: true})
+          const out = reply.stream @: aStream: true
           for let idx = 0; idx<5; idx++ ::
             for let j = 0; j<idx; j++ ::
               out.write @: idx, j, ts: new Date()
