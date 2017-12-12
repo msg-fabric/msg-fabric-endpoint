@@ -1,5 +1,4 @@
 import init_protocol from './protocol/index.jsy'
-import EPTarget from './ep_target.jsy'
 import SinkBase from './sink.jsy'
 import MsgCtxBase from './msgctx.jsy'
 import EndpointBase from './endpoint.jsy'
@@ -83,7 +82,7 @@ export default function(plugin_options) ::
         ready.catch @ err => handlers.on_error @ err, @{} zone:'on_ready'
 
         ::
-          const ep_tgt = new EPTarget(id)
+          const ep_tgt = ep.asTarget()
           return Object.defineProperties @ ep_tgt, @{}
             ready: @{} value: ready.then @ () => ep_tgt
 

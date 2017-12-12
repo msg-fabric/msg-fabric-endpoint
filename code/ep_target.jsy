@@ -2,11 +2,6 @@ export default EPTarget
 export class EPTarget ::
   constructor(id) :: this.id = id
 
-  static from_ready(id, ready) ::
-    const ep_tgt = new this(id)
-    return Object.defineProperties @ ep_tgt, @{}
-      ready: @{} value: ready.then @ () => ep_tgt
-
   valueOf() :: return this.id.id_target
   inspect() :: return `«EPTarget ${ep_encode(this.id, true)}»`
   toJSON() :: return ep_encode(this.id, false)
@@ -15,18 +10,25 @@ export class EPTarget ::
   get id_router() :: return this.id.id_router
   get id_target() :: return this.id.id_target
 
+  static as_json_unpack(msg_ctx_to, xformByKey) ::
+    xformByKey = Object.create(xformByKey || null)
+    xformByKey[token] = v => this.from_ctx @ ep_decode(v), msg_ctx_to
+    return this.json_unpack_xform(xformByKey)
 
-function bindCtxProps(ep_tgt, msg_ctx_to, msgid) ::
-  let ctx, init = () => ctx = msg_ctx_to(ep_tgt, {msgid}).fast_json
-  return Object.defineProperties @ ep_tgt, @{}
-    send: @{} get() :: return (ctx || init()).send
-    query: @{} get() :: return (ctx || init()).query
-    replyExpected: @{} value: !! msgid
+  static from_ctx(id, msg_ctx_to, msgid) ::
+    if ! id :: return
+    const ep_tgt = new this(id)
+    let fast, init = () => fast = msg_ctx_to(ep_tgt, {msgid}).fast_json
+    return Object.defineProperties @ ep_tgt, @{}
+      send: @{} get() :: return (fast || init()).send
+      query: @{} get() :: return (fast || init()).query
+      replyExpected: @{} value: !! msgid
 
 
 const token = '\u03E0' // 'Ϡ'
 EPTarget.token = token
 
+EPTarget.ep_encode = ep_encode
 export function ep_encode(id, simple) ::
   let {id_router:r, id_target:t} = id
   r = (r>>>0).toString(36)
@@ -40,6 +42,7 @@ export function ep_encode(id, simple) ::
   return res
 
 
+EPTarget.ep_decode = ep_decode
 export function ep_decode(v) ::
   const id = 'string' === typeof v
     ? v.split(token)[1]
@@ -54,15 +57,7 @@ export function ep_decode(v) ::
   return @{} id_router: r, id_target: t
 
 
-export function ep_target(id, msg_ctx_to, msgid) ::
-  if id :: return bindCtxProps @ new EPTarget(id), msg_ctx_to, msgid
-
-export function ep_json_unpack(msg_ctx_to, xformByKey) ::
-  xformByKey = Object.create(xformByKey || null)
-  xformByKey[token] = v =>
-    ep_target @ ep_decode(v), msg_ctx_to
-  return json_unpack_xform(xformByKey)
-
+EPTarget.json_unpack_xform = json_unpack_xform
 export function json_unpack_xform(xformByKey) ::
   return sz => JSON.parse @ sz, reviver()
 

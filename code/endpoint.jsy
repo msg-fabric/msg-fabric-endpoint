@@ -1,4 +1,4 @@
-import {ep_encode, ep_target, ep_json_unpack} from './ep_target.jsy'
+import {EPTarget, ep_encode} from './ep_target.jsy'
 
 export default class Endpoint ::
   static subclass(extensions) ::
@@ -8,7 +8,7 @@ export default class Endpoint ::
 
   valueOf() :: return this.id.id_target
   inspect() :: return `«Endpoint ${ep_encode(this.id, true)}»`
-  toJSON() :: return ep_encode(this.id, false)
+  toJSON() :: return this.asTarget().toJSON()
 
   constructor(id, msg_ctx) ::
     Object.defineProperties @ this, @{}
@@ -38,7 +38,7 @@ export default class Endpoint ::
 
     return @{}
       by_msgid: this.createStateMap()
-      json_unpack: ep_json_unpack(this.to)
+      json_unpack: this.EPTarget.as_json_unpack(this.to)
 
       recvCtrl: (msg, info) => ::
         traffic(info.from_id, 'ctrl')
@@ -69,7 +69,12 @@ export default class Endpoint ::
           Promise.resolve(rstream).then(reply)
         return rstream
 
-  asSender(info) :: return ep_target(info.from_id, this.to, info.msgid)
+  asTarget() ::
+    return new this.EPTarget @ this.id
+  asSender({from_id, msgid}) ::
+    if from_id ::
+      return this.EPTarget.from_ctx @ from_id, this.to, msgid
+
   recvTraffic(from_id, traffic, ts) ::
   recvCtrl(msg, info, is_reply) ::
     if is_reply :: return msg
@@ -110,3 +115,4 @@ export default class Endpoint ::
     reply.then @ clear, clear
     return reply
 
+Endpoint.prototype.EPTarget = EPTarget
