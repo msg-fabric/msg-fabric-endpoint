@@ -1,0 +1,4 @@
+export const ep_proto = Object.create @ Object.getPrototypeOf @ function(){}
+export function add_ep_kind(kinds) ::
+  Object.assign @ ep_proto, kinds
+export default add_ep_kind

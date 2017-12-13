@@ -1,0 +1,9 @@
+import {add_ep_kind, ep_proto} from './extensions.jsy'
+
+add_ep_kind @:
+  server(on_init) :: return this.endpoint @ on_init
+
+export * from './client.jsy'
+export * from './api.jsy'
+
+export default ep_proto

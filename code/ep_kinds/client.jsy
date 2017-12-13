@@ -1,0 +1,32 @@
+import add_ep_kind from './extensions.jsy'
+
+add_ep_kind @:
+  clientEndpoint(api) ::
+    const target = clientEndpoint(api)
+    this.endpoint @ target
+    return target.done
+
+  client(...args) ::
+    if 1 === args.length && 'function' === typeof args[0] ::
+      return this.clientEndpoint @ args[0]
+
+    const msg_ctx = new this.MsgCtx()
+    return 0 !== args.length ? msg_ctx.to(...args) : msg_ctx
+
+
+const ep_client_api = @{}
+  async on_ready(ep, hub) ::
+    this._resolve @ await this.on_client_ready(ep, hub)
+    await ep.shutdown()
+  on_send_error(ep, err) ::
+    this._reject(err)
+  on_shutdown(ep, err) ::
+    err ? this._reject(err) : this._resolve()
+
+export function clientEndpoint(on_client_ready) ::
+  let target = Object.create @ ep_client_api
+  target.on_client_ready = on_client_ready
+  target.done = new Promise @ (resolve, reject) => ::
+    target._resolve = resolve
+    target._reject = reject
+  return target

@@ -32,6 +32,11 @@ export default [
       { file: `dist/browser.umd.js`, format: 'umd' },
     ],
     sourcemap, external:[], plugins: plugins_prod },
+
+	{ input: 'code/ep_kinds/index.jsy',
+		output: { file: `dist/ep_kinds.mjs`, format: 'es' },
+    sourcemap, external, plugins },
+
 ]
 
 

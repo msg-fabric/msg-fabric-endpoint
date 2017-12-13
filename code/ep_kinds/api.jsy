@@ -1,0 +1,53 @@
+import add_ep_kind from './extensions.jsy'
+
+add_ep_kind @:
+  api(api) :: return this.endpoint @ asAPIEndpoint(api)
+
+export function asAPIEndpoint(api) ::
+  return (ep, hub) => ::
+    const invoke = as_rpc(api, ep, hub)
+    return on_msg
+
+    async function on_msg({msg, sender}) ::
+      await invoke @ msg, sender
+
+export function as_rpc(api, ep, hub) ::
+  const api_for_op = 'function' === typeof api
+    ? op => api(op, ep, hub)
+    : op => api[op]
+
+  return Object.assign @ invoke, @{}
+    invoke, resolve_fn, invoke_fn, api_for_op
+
+  async function invoke(msg, sender) ::
+    const {op, kw} = msg
+    const fn = await resolve_fn @ op, sender
+    if undefined !== fn ::
+      await invoke_fn @ op, sender, () => fn(kw)
+
+  async function resolve_fn(op, sender) ::
+    if 'string' !== typeof op || ! op[0].match(/[A-Za-z]/) ::
+      await sender.send @: op, err_from: ep
+        error: @{} message: 'Invalid operation', code: 400
+
+    try ::
+      const fn = await api_for_op(op)
+      if ! fn ::
+        await sender.send @: op, err_from: ep
+          error: @{} message: 'Unknown operation', code: 404
+      return fn
+    catch err ::
+      await sender.send @: op, err_from: ep
+        error: @{} message: `Invalid operation: ${err.message}`, code: 500
+
+  async function invoke_fn(op, sender, cb) ::
+    try ::
+      var answer = await cb()
+    catch err ::
+      await sender.send @: op, err_from: ep, error: err
+      return false
+
+    if sender.replyExpected ::
+      await sender.send @: op, answer
+    return true
+

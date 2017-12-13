@@ -1,3 +1,4 @@
+import ep_proto from './ep_kinds/index.jsy'
 import init_protocol from './protocol/index.jsy'
 import SinkBase from './sink.jsy'
 import MsgCtxBase from './msgctx.jsy'
@@ -33,6 +34,9 @@ export default function(plugin_options) ::
     createMap
   = plugin_options
 
+  if plugin_options.ep_kinds ::
+    Object.assign @ ep_proto, plugin_options.ep_kinds
+
   return @: order: 1, subclass, post
   
   function subclass(FabricHub_PI, bases) ::
@@ -50,8 +54,7 @@ export default function(plugin_options) ::
     const protocols = init_protocol @ packetParser, @{} random_id, json_pack
 
     const {Endpoint, Sink, MsgCtx: MsgCtx_pi} =
-      plugin_options.subclass @:
-        protocols,
+      plugin_options.subclass @: protocols
         Sink: SinkBase.forProtocols(protocols)
         MsgCtx: MsgCtxBase.forProtocols(protocols)
         Endpoint: EndpointBase.subclass({createMap})
@@ -59,7 +62,10 @@ export default function(plugin_options) ::
     return function(hub) ::
       const channel = hub.connect_self()
       const MsgCtx = MsgCtx_pi.forHub(hub, channel)
-      return Object.assign @ endpoint, @: create, server: endpoint, client, clientEndpoint
+
+      Object.setPrototypeOf @ endpoint, ep_proto
+      Object.assign @ endpoint, @{} endpoint, create, MsgCtx
+      return endpoint
 
 
       function endpoint(on_init) ::
@@ -75,7 +81,10 @@ export default function(plugin_options) ::
         const ep = new Endpoint @ id, msg_ctx
 
         const ready = Promise
-          .resolve @ on_init(ep, hub)
+          .resolve @
+            'function' === typeof on_init
+              ? on_init(ep, hub)
+              : on_init
           .then @ _after_init
 
         // Allow for both internal and external error handling by forking ready.catch
@@ -99,22 +108,4 @@ export default function(plugin_options) ::
 
           return target.on_ready ? target.on_ready(ep, hub) : target
 
-
-
-      function clientEndpoint(on_ready) ::
-        return new Promise @ (resolve, reject) =>
-          endpoint @ ep => @:
-            async on_ready(ep, hub) ::
-              resolve @ await on_ready(ep, hub)
-              ep.shutdown()
-            on_send_error(ep, err) :: reject(err)
-            on_shutdown(ep, err) :: err ? reject(err) : resolve()
-
-
-      function client(...args) ::
-        if 1 === args.length && 'function' === typeof args[0] ::
-          return clientEndpoint(args[0])
-
-        const msg_ctx = new MsgCtx @ null
-        return 0 !== args.length ? msg_ctx.to(...args) : msg_ctx
 
