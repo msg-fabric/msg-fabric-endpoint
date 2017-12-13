@@ -82,7 +82,7 @@ export default function(plugin_options) ::
         ready.catch @ err => handlers.on_error @ err, @{} zone:'on_ready'
 
         ::
-          const ep_tgt = ep.asTarget()
+          const ep_tgt = ep.ep_self()
           return Object.defineProperties @ ep_tgt, @{}
             ready: @{} value: ready.then @ () => ep_tgt
 

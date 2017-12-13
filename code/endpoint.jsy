@@ -8,7 +8,9 @@ export default class Endpoint ::
 
   valueOf() :: return this.id.id_target
   inspect() :: return `«Endpoint ${ep_encode(this.id, true)}»`
-  toJSON() :: return this.asTarget().toJSON()
+  toJSON() :: return this.ep_self().toJSON()
+  ep_self() :: return new this.EPTarget(this.id)
+  asEndpointId() :: return this.id
 
   constructor(id, msg_ctx) ::
     Object.defineProperties @ this, @{}
@@ -69,18 +71,17 @@ export default class Endpoint ::
           Promise.resolve(rstream).then(reply)
         return rstream
 
-  asTarget() ::
-    return new this.EPTarget @ this.id
-  asSender({from_id, msgid}) ::
-    if from_id ::
-      return this.EPTarget.from_ctx @ from_id, this.to, msgid
+  as_target(id) ::
+    if id :: return this.EPTarget.from_ctx @ id, this.to
+  as_sender({from_id:id, msgid}) ::
+    if id :: return this.EPTarget.from_ctx @ id, this.to, msgid
 
   recvTraffic(from_id, traffic, ts) ::
   recvCtrl(msg, info, is_reply) ::
     if is_reply :: return msg
   recvMsg(msg, info, is_reply) ::
     if is_reply :: return msg
-    return @{} msg, info, sender: this.asSender(info)
+    return @{} msg, info, sender: this.as_sender(info)
   recvStream(msg, info, is_reply) ::
     console.warn @ `Unhandle recv stream: ${info}`
     return null

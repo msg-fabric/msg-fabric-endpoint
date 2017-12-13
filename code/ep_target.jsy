@@ -5,6 +5,7 @@ export class EPTarget ::
   valueOf() :: return this.id.id_target
   inspect() :: return `«EPTarget ${ep_encode(this.id, true)}»`
   toJSON() :: return ep_encode(this.id, false)
+  asEndpointId() :: return this.id
   isEPTarget() :: return true
 
   get id_router() :: return this.id.id_router
@@ -17,6 +18,9 @@ export class EPTarget ::
 
   static from_ctx(id, msg_ctx_to, msgid) ::
     if ! id :: return
+    if 'function' === typeof id.asEndpointId ::
+      id = id.asEndpointId()
+
     const ep_tgt = new this(id)
     let fast, init = () => fast = msg_ctx_to(ep_tgt, {msgid}).fast_json
     return Object.defineProperties @ ep_tgt, @{}

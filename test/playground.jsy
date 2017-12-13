@@ -29,7 +29,7 @@ async function main() ::
     ep.recvStream = function(msg, info) ::
       debug @ '\nAAA NEW STREAM:', msg
       const parts = msg.parts = []
-      return @{} msg, info, sender: ep.asSender(info)
+      return @{} msg, info, sender: ep.as_sender(info)
         //on_init(msg) :: return this
         on_data(data, pkt) ::
           debug @ 'STREAM DATA', data
