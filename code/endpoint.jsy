@@ -6,7 +6,6 @@ export default class Endpoint ::
     Object.assign @ Endpoint.prototype, extensions
     return Endpoint
 
-  valueOf() :: return this.id.id_target
   inspect() :: return `«Endpoint ${ep_encode(this.id, true)}»`
   toJSON() :: return this.ep_self().toJSON()
   ep_self() :: return new this.EPTarget(this.id)

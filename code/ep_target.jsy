@@ -2,7 +2,6 @@ export default EPTarget
 export class EPTarget ::
   constructor(id) :: this.id = id
 
-  valueOf() :: return this.id.id_target
   inspect() :: return `«EPTarget ${ep_encode(this.id, true)}»`
   toJSON() :: return ep_encode(this.id, false)
   asEndpointId() :: return this.id
