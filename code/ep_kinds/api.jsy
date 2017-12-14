@@ -1,53 +1,87 @@
 import add_ep_kind from './extensions.jsy'
 
 add_ep_kind @:
-  api(api) :: return this.endpoint @ asAPIEndpoint(api)
+  api(api) :: return this.endpoint @ api_endpoints.parallel(api)
+  api_parallel(api) :: return this.endpoint @ api_endpoints.parallel(api)
+  api_inorder(api) :: return this.endpoint @ api_endpoints.inorder(api)
 
-export function asAPIEndpoint(api) ::
-  return (ep, hub) => ::
-    const invoke = as_rpc(api, ep, hub)
-    return on_msg
 
-    async function on_msg({msg, sender}) ::
-      await invoke @ msg, sender
+export const api_endpoints = @{}
+  parallel(api) ::
+    return function (ep, hub) ::
+      const rpc = api_endpoints.bind_rpc(api, ep, hub)
+      return @{} rpc,
+        async on_msg({msg, sender}) ::
+          await rpc.invoke @ sender, msg.op,
+            api_fn => api_fn(msg.kw, msg.ctx)
 
-export function as_rpc(api, ep, hub) ::
-  const api_for_op = 'function' === typeof api
-    ? op => api(op, ep, hub)
-    : op => api[op]
+  inorder(api) ::
+    return function (ep, hub) ::
+      const rpc = api_endpoints.bind_rpc(api, ep, hub)
+      return @{} rpc,
+        async on_msg({msg, sender}) ::
+          await rpc.invoke_gated @ sender, msg.op,
+            api_fn => api_fn(msg.kw, msg.ctx)
 
-  return Object.assign @ invoke, @{}
-    invoke, resolve_fn, invoke_fn, api_for_op
+  bind_rpc(api, ep, hub) ::
+    const pfx = api.op_prefix || 'rpc_'
+    const lookup_op = api.op_lookup
+      ? op => api.op_lookup(pfx + op, ep, hub)
+      : 'function' === typeof api
+      ? op => api(pfx + op, ep, hub)
+      : op => ::
+          const fn = api[pfx + op]
+          return fn ? fn.bind(api) : fn
 
-  async function invoke(msg, sender) ::
-    const {op, kw} = msg
-    const fn = await resolve_fn @ op, sender
-    if undefined !== fn ::
-      await invoke_fn @ op, sender, () => fn(kw)
+    return Object.create @ rpc_api, @{}
+      lookup_op: @{} value: lookup_op
+      err_from: @{} value: ep.ep_self()
 
-  async function resolve_fn(op, sender) ::
-    if 'string' !== typeof op || ! op[0].match(/[A-Za-z]/) ::
-      await sender.send @: op, err_from: ep
+
+const rpc_api = @:
+  async invoke(sender, op, cb) ::
+    const api_fn = await this.resolve_op @ sender, op
+    if undefined === api_fn :: return
+
+    const res = this.answer @ sender, api_fn, cb
+    return await res
+
+  async invoke_gated(sender, op, cb) ::
+    const api_fn = await this.resolve_op @ sender, op
+    if undefined === api_fn :: return
+
+    const res = Promise.resolve(this.gate)
+      .then @ () => this.answer @ sender, api_fn, cb
+    this.gate = res.then(noop, noop)
+    return await res
+
+  async resolve_op(sender, op) ::
+    if 'string' !== typeof op ::
+      await sender.send @: op, err_from: this.err_from
         error: @{} message: 'Invalid operation', code: 400
+      return
 
     try ::
-      const fn = await api_for_op(op)
-      if ! fn ::
-        await sender.send @: op, err_from: ep
+      const api_fn = await this.lookup_op(op)
+      if ! api_fn ::
+        await sender.send @: op, err_from: this.err_from
           error: @{} message: 'Unknown operation', code: 404
-      return fn
+      return api_fn
     catch err ::
-      await sender.send @: op, err_from: ep
+      await sender.send @: op, err_from: this.err_from
         error: @{} message: `Invalid operation: ${err.message}`, code: 500
 
-  async function invoke_fn(op, sender, cb) ::
+  async answer(sender, api_fn, cb) ::
     try ::
-      var answer = await cb()
+      var answer = cb ? await cb(api_fn) : await api_fn()
     catch err ::
-      await sender.send @: op, err_from: ep, error: err
+      await sender.send @: err_from: this.err_from, error: err
       return false
 
     if sender.replyExpected ::
-      await sender.send @: op, answer
+      await sender.send @: answer
     return true
+
+
+function noop() {}
 
