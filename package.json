@@ -26,6 +26,7 @@
     "babel-cli": "^6.26.0",
     "babel-preset-jsy": "^0.9.4",
     "msg-fabric-core": "github:shanewholloway/msg-fabric-core",
+    "msg-fabric-protocols": "github:shanewholloway/msg-fabric-protocols",
     "msg-fabric-packet-stream": "github:shanewholloway/msg-fabric-packet-stream",
     "rollup": "^0.52.1",
     "rollup-plugin-babel": "^3.0.2",

@@ -49,20 +49,11 @@ export default class Sink ::
             shutdown(err, {msg, pkt})
             return router.unregister
 
-  stateFor(pkt, ifAbsent) ::
-    const msgid = pkt.info.msgid
-    let entry = this.by_msgid.get(msgid)
-    if undefined === entry ::
-      if ! msgid ::
-        throw new Error @ `Invalid msgid: ${msgid}`
-      if 'function' === typeof ifAbsent ::
-        entry = ifAbsent(pkt, this, msgid)
-      else entry = ifAbsent
-      this.by_msgid.set @ msgid, entry
-    return entry
-
-  deleteStateFor(msgid) ::
-    return this.by_msgid.delete(msgid)
-
-  json_unpack(obj) :: throw new Error @ `Endpoint bindSink() responsibility`
+  //// Endpoint bindSink() responsibilities
+  // by_msgid: new Map()
+  // json_unpack(sz) :: return JSON.parse(sz)
+  // recvCtrl(msg, info) ::
+  // recvMsg(msg, info) :: return @{} msg, info
+  // recvStream(msg, info) ::
+  // recvStreamData(rstream, info) ::
 
