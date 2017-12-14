@@ -1,41 +1,38 @@
 import add_ep_kind from './extensions.jsy'
 
 add_ep_kind @:
-  api(api) :: return this.endpoint @ api_endpoints.parallel(api)
-  api_parallel(api) :: return this.endpoint @ api_endpoints.parallel(api)
-  api_inorder(api) :: return this.endpoint @ api_endpoints.inorder(api)
-
-
-export const api_endpoints = @{}
-  parallel(api) ::
-    return function (ep, hub) ::
-      const rpc = api_endpoints.bind_rpc(api, ep, hub)
+  api_bind_rpc
+  api(api) :: return this.api_parallel(api)
+  api_parallel(api) ::
+    return this.endpoint @ function (ep, hub) ::
+      const rpc = api_bind_rpc(api, ep, hub)
       return @{} rpc,
         async on_msg({msg, sender}) ::
           await rpc.invoke @ sender, msg.op,
             api_fn => api_fn(msg.kw, msg.ctx)
 
-  inorder(api) ::
-    return function (ep, hub) ::
-      const rpc = api_endpoints.bind_rpc(api, ep, hub)
+  api_inorder(api) ::
+    return this.endpoint @ function (ep, hub) ::
+      const rpc = api_bind_rpc(api, ep, hub)
       return @{} rpc,
         async on_msg({msg, sender}) ::
           await rpc.invoke_gated @ sender, msg.op,
             api_fn => api_fn(msg.kw, msg.ctx)
 
-  bind_rpc(api, ep, hub) ::
-    const pfx = api.op_prefix || 'rpc_'
-    const lookup_op = api.op_lookup
-      ? op => api.op_lookup(pfx + op, ep, hub)
-      : 'function' === typeof api
-      ? op => api(pfx + op, ep, hub)
-      : op => ::
-          const fn = api[pfx + op]
-          return fn ? fn.bind(api) : fn
 
-    return Object.create @ rpc_api, @{}
-      lookup_op: @{} value: lookup_op
-      err_from: @{} value: ep.ep_self()
+function api_bind_rpc(api, ep, hub) ::
+  const pfx = api.op_prefix || 'rpc_'
+  const lookup_op = api.op_lookup
+    ? op => api.op_lookup(pfx + op, ep, hub)
+    : 'function' === typeof api
+    ? op => api(pfx + op, ep, hub)
+    : op => ::
+        const fn = api[pfx + op]
+        return fn ? fn.bind(api) : fn
+
+  return Object.create @ rpc_api, @{}
+    lookup_op: @{} value: lookup_op
+    err_from: @{} value: ep.ep_self()
 
 
 const rpc_api = @:

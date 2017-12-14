@@ -1,11 +1,6 @@
 import add_ep_kind from './extensions.jsy'
 
 add_ep_kind @:
-  clientEndpoint(api) ::
-    const target = clientEndpoint(api)
-    this.endpoint @ target
-    return target.done
-
   client(...args) ::
     if 1 === args.length && 'function' === typeof args[0] ::
       return this.clientEndpoint @ args[0]
@@ -13,19 +8,37 @@ add_ep_kind @:
     const msg_ctx = new this.MsgCtx()
     return 0 !== args.length ? msg_ctx.to(...args) : msg_ctx
 
+  clientEndpoint(on_client) ::
+    const target = clientEndpoint(on_client)
+    const ep_tgt = this.endpoint @ target
+    return target.done
+
+  client_api(on_client, api) ::
+    const target = clientEndpoint(on_client)
+    const ep_api = this._unwrap_.api_parallel(api)
+    const ep_tgt = this.endpoint @ (ep, hub) =>
+      Object.assign @ target, ep_api(ep, hub)
+    return target.done
+
 
 const ep_client_api = @{}
   async on_ready(ep, hub) ::
-    this._resolve @ await this.on_client_ready(ep, hub)
+    this._resolve @ await this.on_client(ep, hub)
     await ep.shutdown()
   on_send_error(ep, err) ::
     this._reject(err)
   on_shutdown(ep, err) ::
     err ? this._reject(err) : this._resolve()
 
-export function clientEndpoint(on_client_ready) ::
-  let target = Object.create @ ep_client_api
-  target.on_client_ready = on_client_ready
+export function clientEndpoint(on_client) ::
+  const target = Object.create @ ep_client_api
+  if 'function' !== typeof on_client ::
+    if on_client.on_ready ::
+      throw new TypeError @ `Use "on_client()" instead of "on_ready()" with clientEndpoint`
+    Object.assign @ target, on_client
+  else ::
+    target.on_client = on_client
+
   target.done = new Promise @ (resolve, reject) => ::
     target._resolve = resolve
     target._reject = reject
