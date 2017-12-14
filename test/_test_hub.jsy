@@ -1,12 +1,9 @@
-import {TextEncoder, TextDecoder} from 'util'
-
 import Hub from 'msg-fabric-core'
-import {endpoint_nodejs as endpoint} from '../dist'
+import {protocols_nodejs} from 'msg-fabric-protocols'
+import endpoint from '../dist'
 import router_plugin from 'msg-fabric-core/dist/plugin-router-node'
-//import router_plugin from 'msg-fabric-core/dist/plugin-router-browser'
 
 export default Hub.plugin @
+  protocols_nodejs()
   endpoint()
-  router_plugin @:
-    TextEncoder
-    TextDecoder
+  router_plugin()

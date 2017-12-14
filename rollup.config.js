@@ -17,20 +17,8 @@ export default [
     ],
     sourcemap, external, plugins },
 
-	{ input: 'code/index.nodejs.jsy',
-		output: [
-      { file: `dist/nodejs.js`, format: 'cjs' },
-      { file: `dist/nodejs.mjs`, format: 'es' },
-    ],
-    sourcemap, external, plugins: plugins_prod },
-
-	{ input: 'code/index.browser.jsy',
-    name: 'msg-fabric-sink',
-		output: [
-      { file: `dist/browser.js`, format: 'cjs' },
-      { file: `dist/browser.mjs`, format: 'es' },
-      { file: `dist/browser.umd.js`, format: 'umd' },
-    ],
+	{ input: 'code/index.jsy',
+		output: { file: `dist/browser.amd.js`, format: 'amd' },
     sourcemap, external:[], plugins: plugins_prod },
 
 	{ input: 'code/ep_kinds/index.jsy',

@@ -1,3 +1,5 @@
+require('source-map-support').install()
+
 import TestHub from './_test_hub'
 
 function debug(...args) :: console.log @ ...args

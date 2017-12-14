@@ -1,11 +1,12 @@
 import ep_proto from './ep_kinds/index.jsy'
-import init_protocol from './protocol/index.jsy'
 import SinkBase from './sink.jsy'
 import MsgCtxBase from './msgctx.jsy'
 import EndpointBase from './endpoint.jsy'
 
 const default_plugin_options = @:
   plugin_name: 'endpoint'
+  createMap() :: return new Map() // LRUMap, HashbeltMap
+
   on_msg({msg, reply, info}) ::
     console.warn @ 'ENDPOINT MSG:', @{} msg, reply, info
   on_error(ep, err, extra) ::
@@ -20,46 +21,36 @@ const default_plugin_options = @:
     //const {Endpoint, Sink, MsgCtx, protocols} = classes
     return classes
 
-  json_pack: JSON.stringify
-  createMap() :: return new Map() // LRUMap, HashbeltMap
-
 
 export default function(plugin_options) ::
   plugin_options = Object.assign @ {}, default_plugin_options, plugin_options
   const @{}
-    plugin_name, random_id, json_pack
+    plugin_name, createMap
     on_msg: default_on_msg
     on_error: default_on_error
     on_shutdown: default_on_shutdown
-    createMap
   = plugin_options
 
   if plugin_options.ep_kinds ::
     Object.assign @ ep_proto, plugin_options.ep_kinds
 
-  return @: order: 1, subclass, post
-  
+  let endpoint_plugin
+  return @:
+    subclass
+    post(hub) ::
+      return hub[plugin_name] = endpoint_plugin(hub)
+
   function subclass(FabricHub_PI, bases) ::
-    const {packetParser} = FabricHub_PI.prototype
-    if null==packetParser || ! packetParser.isPacketParser() ::
-      throw new TypeError @ `Invalid packetParser for plugin`
-    
-    FabricHub_PI.prototype[plugin_name] =
-      bindEndpointApi @ packetParser
-
-  function post(hub) ::
-    return hub[plugin_name] = hub[plugin_name](hub)
-
-  function bindEndpointApi(packetParser) ::
-    const protocols = init_protocol @ packetParser, @{} random_id, json_pack
+    const protocols = plugin_options.protocols
+      || FabricHub_PI.prototype.protocols
 
     const {Endpoint, Sink, MsgCtx: MsgCtx_pi} =
-      plugin_options.subclass @: protocols
+      plugin_options.subclass @:
         Sink: SinkBase.forProtocols(protocols)
         MsgCtx: MsgCtxBase.forProtocols(protocols)
         Endpoint: EndpointBase.subclass({createMap})
 
-    return function(hub) ::
+    endpoint_plugin = function (hub) ::
       const channel = hub.connect_self()
       const MsgCtx = MsgCtx_pi.forHub(hub, channel)
 
@@ -70,7 +61,7 @@ export default function(plugin_options) ::
 
       function endpoint(on_init) ::
         const targets = hub.router.targets
-        do var id_target = random_id()
+        do var id_target = protocols.random_id()
         while targets.has @ id_target
         return create @ id_target, on_init
 

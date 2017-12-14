@@ -24,7 +24,7 @@
   "module": "dist/index.mjs",
   "devDependencies": {
     "babel-cli": "^6.26.0",
-    "babel-preset-jsy": "^0.9.3",
+    "babel-preset-jsy": "^0.9.4",
     "msg-fabric-core": "github:shanewholloway/msg-fabric-core",
     "msg-fabric-packet-stream": "github:shanewholloway/msg-fabric-packet-stream",
     "rollup": "^0.52.1",
