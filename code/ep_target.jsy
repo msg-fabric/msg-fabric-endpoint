@@ -21,7 +21,7 @@ export class EPTarget ::
       id = id.asEndpointId()
 
     const ep_tgt = new this(id)
-    let fast, init = () => fast = msg_ctx_to(ep_tgt, {msgid}).fast_json
+    let fast, init = () => fast = msg_ctx_to(ep_tgt, {msgid}).fast
     return Object.defineProperties @ ep_tgt, @{}
       send: @{} get() :: return (fast || init()).send
       query: @{} get() :: return (fast || init()).query

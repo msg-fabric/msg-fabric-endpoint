@@ -69,6 +69,7 @@ export default class MsgCtx ::
       ctx.id_target = tgt
       ctx.id_router = ctx.from_id.id_router
     else ::
+      ctx.to_tgt = tgt
       tgt = ep_decode(tgt) || tgt
       const {from_id: reply_id, id_target, id_router, token, msgid} = tgt
 
@@ -160,13 +161,13 @@ export default class MsgCtx ::
     this.prototype._msgCodecs = msgCodecs
     this.prototype._codec = msgCodecs.default
 
-    // bind send_json as frequently used fast-path
-    const json_send = msgCodecs.json.send
+    // bind frequently used fast-path
+    const send = msgCodecs.default.send
     Object.defineProperties @ this.prototype, @:
-      fast_json: @{} get() :: return @:
-        send: (...args) => this._invoke_ex(json_send, args)
-        sendQuery: (...args) => this._invoke_ex(json_send, args, true)
-        query: (...args) => this._invoke_ex(json_send, args, true).reply
+      fast: @{} get() :: return @:
+        send: (...args) => this._invoke_ex(send, args)
+        sendQuery: (...args) => this._invoke_ex(send, args, true)
+        query: (...args) => this._invoke_ex(send, args, true).reply
 
     return this
 

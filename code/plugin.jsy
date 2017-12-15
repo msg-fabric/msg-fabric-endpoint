@@ -5,6 +5,7 @@ import EndpointBase from './endpoint.jsy'
 
 const default_plugin_options = @:
   plugin_name: 'endpoint'
+  protocols: 'protocols'
   createMap() :: return new Map() // LRUMap, HashbeltMap
 
   on_msg({msg, reply, info}) ::
@@ -25,7 +26,7 @@ const default_plugin_options = @:
 export default function(plugin_options) ::
   plugin_options = Object.assign @ {}, default_plugin_options, plugin_options
   const @{}
-    plugin_name, createMap
+    createMap
     on_msg: default_on_msg
     on_error: default_on_error
     on_shutdown: default_on_shutdown
@@ -36,13 +37,26 @@ export default function(plugin_options) ::
 
   let endpoint_plugin
   return @:
+    order: 1
     subclass
     post(hub) ::
-      return hub[plugin_name] = endpoint_plugin(hub)
+      return hub[plugin_options.plugin_name] = endpoint_plugin(hub)
+
+
+  function get_protocols(hub_prototype) ::
+    const res = plugin_options.protocols
+    if 'string' === typeof res ::
+      return hub_prototype[res]
+    else if 'function' === typeof res ::
+      return plugin_options.protocols @
+        hub_prototype.protocols, hub_prototype
+    else if null == res ::
+      return hub_prototype.protocols
+    else return res
+
 
   function subclass(FabricHub_PI, bases) ::
-    const protocols = plugin_options.protocols
-      || FabricHub_PI.prototype.protocols
+    const protocols = get_protocols @ FabricHub_PI.prototype
 
     const {Endpoint, Sink, MsgCtx: MsgCtx_pi} =
       plugin_options.subclass @:
