@@ -12,7 +12,7 @@ export class EPTarget ::
 
   static as_json_unpack(msg_ctx_to, xformByKey) ::
     xformByKey = Object.create(xformByKey || null)
-    xformByKey[token] = v => this.from_ctx @ ep_decode(v), msg_ctx_to
+    xformByKey[token] = v => this.from_ctx @ ep_decode(v, true), msg_ctx_to
     return this.json_unpack_xform(xformByKey)
 
   static from_ctx(id, msg_ctx_to, msgid) ::
@@ -46,18 +46,22 @@ export function ep_encode(id, simple) ::
 
 
 EPTarget.ep_decode = ep_decode
-export function ep_decode(v) ::
-  const id = 'string' === typeof v
+export function ep_decode(v, inc_extra) ::
+  const sz_id = 'string' === typeof v
     ? v.split(token)[1]
     : v[token]
-  if ! id :: return
+  if ! sz_id :: return
 
-  let [r,t] = id.split('~')
+  let [r,t] = sz_id.split('~')
   if undefined === t :: return
   r = 0 | parseInt(r, 36)
   t = 0 | parseInt(t, 36)
 
-  return @{} id_router: r, id_target: t
+  const id = @{} id_router: r, id_target: t
+  if inc_extra && 'object' === typeof v ::
+    Object.assign @ id, v
+    delete id[token]
+  return id
 
 
 EPTarget.json_unpack_xform = json_unpack_xform
