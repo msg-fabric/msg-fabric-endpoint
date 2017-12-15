@@ -82,8 +82,7 @@ export default function(plugin_options) ::
       function create(id_target, on_init) ::
         const handlers = Object.create(null)
         const id = @{} id_target, id_router: hub.router.id_self
-        const msg_ctx = new MsgCtx @ id
-        const ep = new Endpoint @ id, msg_ctx
+        const ep = new Endpoint @ id, MsgCtx
 
         const ready = Promise
           .resolve @

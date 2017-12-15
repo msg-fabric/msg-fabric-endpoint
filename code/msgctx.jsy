@@ -9,11 +9,14 @@ export default class MsgCtx ::
 
   static forHub(hub, channel) ::
     const {sendRaw} = channel
-
-    class MsgCtx extends this ::
-    MsgCtx.prototype.chan_send = async pkt => ::
+    async function chan_send(pkt) ::
       await sendRaw(pkt)
       return true
+
+    class MsgCtx extends this ::
+    MsgCtx.prototype.chan = Object.create @
+      MsgCtx.prototype.chan || null
+      @{} send: @{} value: chan_send
 
     return MsgCtx
 
@@ -28,6 +31,7 @@ export default class MsgCtx ::
   withEndpoint(endpoint) ::
     return Object.defineProperties @ this, @{}
       endpoint: @{} value: endpoint
+      chan: @{} value: Object.create @ this.chan
 
 
   ping(token=true) :: return this._invoke_ex(this._msgCodecs.control.ping, [], token)
@@ -50,7 +54,7 @@ export default class MsgCtx ::
 
     this.assertMonitor()
 
-    const res = invoke @ this.chan_send, obj, ...args
+    const res = invoke @ this.chan, obj, ...args
     if ! token || 'function' !== typeof res.then :: return res
 
     let p_sent  = res.then()

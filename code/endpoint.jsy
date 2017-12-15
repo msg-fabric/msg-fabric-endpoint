@@ -11,16 +11,19 @@ export default class Endpoint ::
   ep_self() :: return new this.EPTarget(this.id)
   asEndpointId() :: return this.id
 
-  constructor(id, msg_ctx) ::
+  constructor(id, MsgCtx) ::
+    const msg_ctx = this.initMsgCtx @ id, MsgCtx
     Object.defineProperties @ this, @{}
       id: @{} value: id
-      to: @{} value: msg_ctx.withEndpoint(this).to
+      to: @{} value: msg_ctx.to
 
   createMap() :: return new Map()
   createStateMap() :: return this.createMap()
   createReplyMap() :: return this.createMap()
   createTrafficMap() :: return this.createMap()
-  createRouteCacheMap() :: return this.createMap()
+
+  initMsgCtx(id, MsgCtx) ::
+    return new MsgCtx(id).withEndpoint(this)
 
   bindSink(sink) ::
     const by_token = this.createReplyMap()
@@ -116,3 +119,4 @@ export default class Endpoint ::
     return reply
 
 Endpoint.prototype.EPTarget = EPTarget
+
