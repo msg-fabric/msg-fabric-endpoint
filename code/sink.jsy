@@ -2,7 +2,6 @@ const deliver = @{} 'direct': true, 'datagram': true
 
 const pkt_msg = @{} __proto__: null
   get msg() :: return this.pkt.json()
-  get sender() :: return this.pkt.op.reply()
   get reply() :: return this.pkt.op.reply()
   get anon() :: return this.pkt.op.anon()
 

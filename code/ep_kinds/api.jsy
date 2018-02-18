@@ -7,22 +7,16 @@ ep_proto._add_kind_ @:
     return this.endpoint @ function (ep, hub) ::
       const rpc = api_bind_rpc(api, ep, hub)
       return @{} rpc,
-        async on_msg(pkt) ::
-          if ! pkt.is_pkt_json :: return
-          const msg = pkt.json()
-          throw new Error @ 'TODO: fix sender with new pkt api'
-          await rpc.invoke @ sender, msg.op,
+        async on_msg({msg, anon}) ::
+          await rpc.invoke @ anon, msg.op,
             api_fn => api_fn(msg.kw, msg.ctx)
 
   api_inorder(api) ::
     return this.endpoint @ function (ep, hub) ::
       const rpc = api_bind_rpc(api, ep, hub)
       return @{} rpc,
-        async on_msg(pkt) ::
-          if ! pkt.is_pkt_json :: return
-          const msg = pkt.json()
-          throw new Error @ 'TODO: fix sender with new pkt api'
-          await rpc.invoke_gated @ sender, msg.op,
+        async on_msg({msg, anon}) ::
+          await rpc.invoke_gated @ anon, msg.op,
             api_fn => api_fn(msg.kw, msg.ctx)
 
 
@@ -42,47 +36,47 @@ function api_bind_rpc(api, ep, hub) ::
 
 
 const rpc_api = @:
-  async invoke(sender, op, cb) ::
-    const api_fn = await this.resolve_op @ sender, op
+  async invoke(reply, op, cb) ::
+    const api_fn = await this.resolve_op @ reply, op
     if undefined === api_fn :: return
 
-    const res = this.answer @ sender, api_fn, cb
+    const res = this.answer @ reply, api_fn, cb
     return await res
 
-  async invoke_gated(sender, op, cb) ::
-    const api_fn = await this.resolve_op @ sender, op
+  async invoke_gated(reply, op, cb) ::
+    const api_fn = await this.resolve_op @ reply, op
     if undefined === api_fn :: return
 
     const res = Promise.resolve(this.gate)
-      .then @ () => this.answer @ sender, api_fn, cb
+      .then @ () => this.answer @ reply, api_fn, cb
     this.gate = res.then(noop, noop)
     return await res
 
-  async resolve_op(sender, op) ::
+  async resolve_op(reply, op) ::
     if 'string' !== typeof op ::
-      await sender.send @: op, err_from: this.err_from
+      await reply.send @: op, err_from: this.err_from
         error: @{} message: 'Invalid operation', code: 400
       return
 
     try ::
       const api_fn = await this.lookup_op(op)
       if ! api_fn ::
-        await sender.send @: op, err_from: this.err_from
+        await reply.send @: op, err_from: this.err_from
           error: @{} message: 'Unknown operation', code: 404
       return api_fn
     catch err ::
-      await sender.send @: op, err_from: this.err_from
+      await reply.send @: op, err_from: this.err_from
         error: @{} message: `Invalid operation: ${err.message}`, code: 500
 
-  async answer(sender, api_fn, cb) ::
+  async answer(reply, api_fn, cb) ::
     try ::
       var answer = cb ? await cb(api_fn) : await api_fn()
     catch err ::
-      await sender.send @: err_from: this.err_from, error: err
+      await reply.send @: err_from: this.err_from, error: err
       return false
 
-    if sender.replyExpected ::
-      await sender.send @: answer
+    if reply.replyExpected ::
+      await reply.send @: answer
     return true
 
 
