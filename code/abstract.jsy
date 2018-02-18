@@ -1,0 +1,6 @@
+const endpoint = @{}
+  createStateMap() :: return new Map()
+  recv_multipart(rpkt, op) ::
+    return (pkt, op, ep) => null || msg
+  recv_stream(rpkt, op) ::
+    return (pkt, op, ep) => null || msg

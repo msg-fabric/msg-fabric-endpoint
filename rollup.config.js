@@ -7,7 +7,7 @@ const sourcemap = 'inline'
 const plugins = [rpi_jsy()]
 
 const ugly = { warnings: true, output: {comments: false, max_line_len: 256}}
-const prod_plugins = null && plugins.concat([rpi_uglify(ugly, minify)])
+const prod_plugins = plugins.concat([rpi_uglify(ugly, minify)])
 
 const external = []
 

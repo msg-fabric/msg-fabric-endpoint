@@ -1,115 +1,70 @@
 import ep_proto from './ep_kinds/index.jsy'
-import SinkBase from './sink.jsy'
-import MsgCtxBase from './msgctx.jsy'
-import EndpointBase from './endpoint.jsy'
+import sink from './sink.jsy'
 
-const default_plugin_options = @:
+const default_plugin_options = @{}
   plugin_name: 'endpoint'
-  protocols: 'protocols'
-  createMap() :: return new Map() // LRUMap, HashbeltMap
 
-  on_msg({msg, reply, info}) ::
-    console.warn @ 'ENDPOINT MSG:', @{} msg, reply, info
+  on_msg(pkt) ::
+    console.warn @ 'ENDPOINT MSG:', pkt
+  on_warn(ep, msg, extra) ::
+    console.warn @ 'ENDPOINT WARN:', msg
+  on_send_error(ep, err, extra) ::
+    // TODO: plumb through ep.on_send_error
+    console.error @ 'ENDPOINT SEND ERROR:', err
   on_error(ep, err, extra) ::
     console.error @ 'ENDPOINT ERROR:', err
-    // const {msg, pkt} = extra
     // return false to prevent auto-shutdown
   on_shutdown(ep, err, extra) ::
-    // const {msg, pkt} = extra
     console.error @ `ENDPOINT SHUTDOWN: ${err.message}`
 
-  subclass(classes) ::
-    //const {Endpoint, Sink, MsgCtx, protocols} = classes
-    return classes
 
-
-export default function(plugin_options) ::
+export default endpoint_plugin
+export function endpoint_plugin(plugin_options) ::
   plugin_options = Object.assign @ {}, default_plugin_options, plugin_options
-  const @{}
-    createMap
-    on_msg: default_on_msg
-    on_error: default_on_error
-    on_shutdown: default_on_shutdown
-  = plugin_options
 
-  if plugin_options.ep_kinds ::
-    Object.assign @ ep_proto, plugin_options.ep_kinds
+  const fallback = @{} __proto__: null
+    on_msg: plugin_options.on_msg
+    on_error: plugin_options.on_error
+    on_shutdown: plugin_options.on_shutdown
 
-  let endpoint_plugin
-  return @:
-    order: 1
-    subclass
-    post(hub) ::
-      return hub[plugin_options.plugin_name] = endpoint_plugin(hub)
+  return function(hub) ::
+    const pi_msgs = hub.msgs, random = hub.data_utils.random
 
+    const pi = createEndpointPlugin(hub.local)
+    pi.createEndpointPlugin = createEndpointPlugin
+    return hub[plugin_options.plugin_name] = pi
 
-  function get_protocols(hub_prototype) ::
-    const res = plugin_options.protocols
-    if 'string' === typeof res ::
-      return hub_prototype[res]
-    else if 'function' === typeof res ::
-      return plugin_options.protocols @
-        hub_prototype.protocols, hub_prototype
-    else if null == res ::
-      return hub_prototype.protocols
-    else return res
-
-
-  function subclass(FabricHub_PI, bases) ::
-    const protocols = get_protocols @ FabricHub_PI.prototype
-
-    const {Endpoint, Sink, MsgCtx: MsgCtx_pi} =
-      plugin_options.subclass @:
-        Sink: SinkBase.forProtocols(protocols)
-        MsgCtx: MsgCtxBase.forProtocols(protocols)
-        Endpoint: EndpointBase.subclass({createMap})
-
-    endpoint_plugin = function (hub) ::
-      const channel = hub.connect_self()
-      const MsgCtx = MsgCtx_pi.forHub(hub, channel)
+    function createEndpointPlugin(tgt_router) ::
+      const {id_route} = tgt_router
 
       Object.setPrototypeOf @ endpoint, ep_proto
-      Object.assign @ endpoint, @{} endpoint, create, MsgCtx
-      return endpoint
-
+      return Object.assign @ endpoint, @{} endpoint, create
 
       function endpoint(on_init) ::
-        const targets = hub.router.targets
-        do var id_target = protocols.random_id()
-        while targets.has @ id_target
-        return create @ id_target, on_init
+        return create @ random(6, true), on_init
 
       function create(id_target, on_init) ::
-        const handlers = Object.create(null)
-        const id = @{} id_target, id_router: hub.router.id_self
-        const ep = new Endpoint @ id, MsgCtx
+        const ep = pi_msgs.as @: id_target, id_route
+        // capture the _recv_ method
+        const _recv_ = ep._recv_; delete ep._recv_
 
+        // use on_init to extended ep; see abstract.jsy for notes
         const ready = Promise
-          .resolve @
-            'function' === typeof on_init
-              ? on_init(ep, hub)
-              : on_init
+          .resolve @ 'function' === typeof on_init ? on_init(ep, hub) : on_init
           .then @ _after_init
 
-        // Allow for both internal and external error handling by forking ready.catch
-        ready.catch @ err => handlers.on_error @ err, @{} zone:'on_ready'
-
         ::
-          const ep_tgt = ep.ep_self()
+          const ep_tgt = ep.toJSON()
           return Object.defineProperties @ ep_tgt, @{}
             ready: @{} value: ready.then @ () => ep_tgt
 
 
-        function _after_init(target) ::
-          if null == target ::
+        function _after_init(tgt) ::
+          if null == tgt ::
             throw new TypeError @ `Expected endpoint init to return a closure or interface`
 
-          handlers.on_msg = (target.on_msg || ('function' === typeof target ? target : default_on_msg)).bind(target)
-          handlers.on_error = (target.on_error || default_on_error).bind(target, ep)
-          handlers.on_shutdown = (target.on_shutdown || default_on_shutdown).bind(target, ep)
+          tgt_router.registerTarget @ id_target,
+            sink @ _recv_, ep, tgt, fallback
 
-          new Sink().register @ ep, hub, id_target, handlers
-
-          return target.on_ready ? target.on_ready(ep, hub) : target
-
+          return tgt.on_ready ? tgt.on_ready(ep, hub) : tgt
 

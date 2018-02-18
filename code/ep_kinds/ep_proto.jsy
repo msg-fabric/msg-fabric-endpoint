@@ -1,0 +1,13 @@
+export const ep_proto = Object.create @
+  Object.getPrototypeOf @ function(){}
+  @{}
+    _as_target_: @{} get() ::
+      const self = Object.create(this)
+      // 'unwrap' by passing target back out of endpoint() call
+      self.endpoint = v => v
+      return self
+
+    _add_kind_: @{} value(kinds) ::
+      return Object.assign @ this, kinds
+
+export default ep_proto

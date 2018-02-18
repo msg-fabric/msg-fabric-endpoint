@@ -1,22 +1,16 @@
-import add_ep_kind from './extensions.jsy'
+import ep_proto from './ep_proto.jsy'
 
-add_ep_kind @:
-  client(...args) ::
-    if 1 === args.length && 'function' === typeof args[0] ::
-      return this.clientEndpoint @ args[0]
-
-    const msg_ctx = new this.MsgCtx()
-    return 0 !== args.length ? msg_ctx.to(...args) : msg_ctx
-
-  clientEndpoint(on_client) ::
-    const target = clientEndpoint(on_client)
-    const ep_tgt = this.endpoint @ target
+ep_proto._add_kind_ @:
+  client(on_client) ::
+    const target = as_client_target(on_client)
+    this.endpoint @ target
     return target.done
 
   client_api(on_client, api) ::
-    const target = clientEndpoint(on_client)
-    const ep_api = this._unwrap_.api_parallel(api)
-    const ep_tgt = this.endpoint @ (ep, hub) =>
+    // get api_parallel as target instead of endpoint
+    const ep_api = this._as_target_.api_parallel(api)
+    const target = as_client_target(on_client)
+    this.endpoint @ (ep, hub) =>
       Object.assign @ target, ep_api(ep, hub)
     return target.done
 
@@ -30,7 +24,7 @@ const ep_client_api = @{}
   on_shutdown(ep, err) ::
     err ? this._reject(err) : this._resolve()
 
-export function clientEndpoint(on_client) ::
+export function as_client_target(on_client) ::
   const target = Object.create @ ep_client_api
   if 'function' !== typeof on_client ::
     if on_client.on_ready ::

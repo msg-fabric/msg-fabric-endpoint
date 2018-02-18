@@ -1,6 +1,6 @@
 require('source-map-support').install()
 
-import TestHub from './_test_hub'
+import TestHub from './_test_hub.jsy'
 
 const hub = new TestHub()
 
@@ -8,7 +8,8 @@ const pizza_place = hub.endpoint @ ep => ::
 
   const assemble = hub.endpoint @ ep => ::
     return @{}
-      async on_msg({msg, info}) ::
+      async on_msg(pkt) ::
+        const msg = pkt.json()
         console.log @ 'assemble msg', msg
 
         const stg = ep.to(storage)
@@ -16,7 +17,9 @@ const pizza_place = hub.endpoint @ ep => ::
         Promise.all @ Array.from @
           msg.order.ingredients
           async ingredient => ::
-            const res = await stg.query @: ingredient
+            const rpkt = await stg.query @: ingredient
+            const res = rpkt.json()
+
             if res.hasOne :: return res.ingredient
             else throw new Error @ `Out of "${ingredient}"`
         .then @
@@ -25,28 +28,28 @@ const pizza_place = hub.endpoint @ ep => ::
               order: msg.order
 
           async err => ::
-            await ep.to(info).send @:
-              order: msg.order
-              canceled:true
-              reason: 'Out of ingredients'
+            console.log @: err, pkt, ep
           
       
   const cook = hub.endpoint @ ep => ::
     return @{}
-      async on_msg({msg, info}) ::
+      async on_msg(pkt) ::
+        const msg = pkt.json()
         console.log @ 'cook msg', msg
         await ep.to(qa).send @:
           order: msg.order
 
   const qa = hub.endpoint @ ep => ::
     return @{}
-      async on_msg({msg, info}) ::
+      async on_msg(pkt) ::
+        const msg = pkt.json()
         console.log @ 'qa msg', msg
         await ep.to(delivery).send @:
           order: msg.order
 
   const delivery = hub.endpoint @ ep =>
-    async ({msg, info}) => ::
+    async (pkt) => ::
+      const msg = pkt.json()
       console.log @ 'out for delivery', @# msg.order.address
 
   const storage = hub.endpoint @ ep => ::
@@ -58,13 +61,13 @@ const pizza_place = hub.endpoint @ ep => ::
       'red sauce': 10
       
     return @{}
-      async on_msg({msg, sender}) ::
-        console.log @ 'storage msg', msg
-        if sender.replyExpected ::
+      async on_msg(pkt) ::
+        const msg = pkt.json()
+        if pkt.op.token ::
           const {ingredient} = msg
           const hasOne = 0 < freezer[ingredient]--
           
-          await sender.send @: hasOne, ingredient
+          await pkt.op.reply().answer @: hasOne, ingredient
           
 
   return @{}
@@ -73,7 +76,8 @@ const pizza_place = hub.endpoint @ ep => ::
       console.log @ 'pizza_place on_ready'
       
       
-    async on_msg({msg, info}) ::
+    async on_msg(pkt) ::
+      const msg = pkt.json()
       console.log @ 'pizza_place msg', msg, msg.ingredients
       if msg.ingredients ::
         console.log @ 'sending to assembly', assemble
@@ -83,7 +87,7 @@ const pizza_place = hub.endpoint @ ep => ::
 
 const customer_order = async () => ::
   console.log @ "Customer phones in order:", pizza_place
-  const c = hub.endpoint.client(pizza_place)
+  const c = hub.msgs.to(pizza_place)
   await c.send @: 
       ingredients: @# 'sausage', 'bacon', 'cheese', 'red sauce', 'thin crust'
       address: '123 2nd Ave North, Seattle, WA 98103'

@@ -1,13 +1,16 @@
-import add_ep_kind from './extensions.jsy'
+import ep_proto from './ep_proto.jsy'
 
-add_ep_kind @:
+ep_proto._add_kind_ @:
   api_bind_rpc
   api(api) :: return this.api_parallel(api)
   api_parallel(api) ::
     return this.endpoint @ function (ep, hub) ::
       const rpc = api_bind_rpc(api, ep, hub)
       return @{} rpc,
-        async on_msg({msg, sender}) ::
+        async on_msg(pkt) ::
+          if ! pkt.is_pkt_json :: return
+          const msg = pkt.json()
+          throw new Error @ 'TODO: fix sender with new pkt api'
           await rpc.invoke @ sender, msg.op,
             api_fn => api_fn(msg.kw, msg.ctx)
 
@@ -15,7 +18,10 @@ add_ep_kind @:
     return this.endpoint @ function (ep, hub) ::
       const rpc = api_bind_rpc(api, ep, hub)
       return @{} rpc,
-        async on_msg({msg, sender}) ::
+        async on_msg(pkt) ::
+          if ! pkt.is_pkt_json :: return
+          const msg = pkt.json()
+          throw new Error @ 'TODO: fix sender with new pkt api'
           await rpc.invoke_gated @ sender, msg.op,
             api_fn => api_fn(msg.kw, msg.ctx)
 

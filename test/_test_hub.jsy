@@ -1,9 +1,5 @@
-import Hub from 'msg-fabric-core'
-import {protocols_nodejs} from 'msg-fabric-protocols'
-import endpoint from '../dist'
-import router_plugin from 'msg-fabric-core/dist/plugin-router-node'
+import Hub from 'msg-fabric-core/esm/msg-fabric-core-node.js'
+import endpoint from '../esm'
 
 export default Hub.plugin @
-  protocols_nodejs()
   endpoint()
-  router_plugin()

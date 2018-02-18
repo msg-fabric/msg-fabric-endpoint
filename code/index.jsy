@@ -1,5 +1,3 @@
 export * from './sink.jsy'
-export * from './msgctx.jsy'
-export * from './endpoint.jsy'
 export * from './plugin.jsy'
 export {default as default} from './plugin.jsy'
