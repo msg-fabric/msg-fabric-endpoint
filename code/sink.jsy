@@ -1,0 +1,87 @@
+const deliver = @{} 'direct': true, 'datagram': true
+
+const pkt_msg = @{} __proto__: null
+  get msg() :: return this.pkt.json()
+  get sender() :: return this.pkt.op.reply()
+  get reply() :: return this.pkt.op.reply()
+  get anon() :: return this.pkt.op.anon()
+
+
+export default sink
+export function sink(_recv_, ep, tgt, fallback) ::
+  const on_msg = tgt.on_msg
+    ? tgt.on_msg.bind(tgt)
+    : 'function' === typeof tgt ? tgt
+    : fallback.on_msg
+
+  let alive = true
+
+  const isAlive = () => alive
+  const shutdown = (err, extra) => ::
+    if alive ::
+      alive = false
+      (tgt.on_shutdown ? tgt : fallback)
+        .on_shutdown(ep, err, extra)
+
+  Object.assign @ ep, @{} isAlive, shutdown
+  const by_msgid = ep.createStateMap ? ep.createStateMap() : new Map()
+
+  return dispatch_pkt
+
+
+  async function dispatch_pkt(pkt, pktctx) ::
+    if ! alive :: return
+    pkt = _recv_(pkt)
+    if null == pkt :: return // handled by _recv
+
+    try ::
+      if pkt.is_pkt_json ::
+        const op = pkt.op, {msgid, kind} = op
+        if msgid && null == op.resolve(pkt.json()) ::
+          return // handled by op.resolve
+
+        if pkt.is_multi_pkt ::
+          const msg = @{} pkt, __proto__: pkt_msg
+          return on_msg(msg)
+
+        if true === deliver[kind] ::
+          const msg = @{} pkt, __proto__: pkt_msg
+          return on_msg(msg)
+
+      return dispatch_msg(pkt, op)
+
+    catch err ::
+      try ::
+        var terminate = (tgt.on_error ? tgt : fallback)
+          .on_error @ ep, err, @{} pkt
+      finally ::
+        if false !== terminate ::
+          pktctx.unregisterTarget(pkt.id_target)
+          shutdown(err, {pkt})
+
+
+  async function dispatch_msg(pkt, op) ::
+    const {msgid, token} = op
+    const key = msgid || token
+
+    let on_tip_pkt = by_msgid.get(key)
+    if undefined === on_tip_pkt ::
+      // e.g. recv_stream, recv_multipart,
+      const ep_recv = ep[`recv_${kind}`]
+      if undefined !== ep_recv ::
+        on_tip_pkt = await ep_recv.call(ep, pkt, op)
+
+      if null == on_tip_pkt ::
+        on_tip_pkt = noop
+        (tgt.on_warn ? tgt : fallback)
+          .on_warn @ ep, `Unhandled "${kind}" packet`, @{} pkt, op
+
+      by_msgid.set(key, on_tip_pkt)
+
+    var msg = await on_tip_pkt(pkt, op, ep)
+    if undefined !== msg ::
+      if msgid && null == op.resolve(msg) ::
+        return // handled by op.resolve
+      await on_msg(msg)
+
+function noop() ::

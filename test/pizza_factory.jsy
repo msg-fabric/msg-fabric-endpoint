@@ -8,8 +8,7 @@ const pizza_place = hub.endpoint @ ep => ::
 
   const assemble = hub.endpoint @ ep => ::
     return @{}
-      async on_msg(pkt) ::
-        const msg = pkt.json()
+      async on_msg({msg}) ::
         console.log @ 'assemble msg', msg
 
         const stg = ep.to(storage)
@@ -17,8 +16,7 @@ const pizza_place = hub.endpoint @ ep => ::
         Promise.all @ Array.from @
           msg.order.ingredients
           async ingredient => ::
-            const rpkt = await stg.query @: ingredient
-            const res = rpkt.json()
+            const res = await stg.query @: ingredient
 
             if res.hasOne :: return res.ingredient
             else throw new Error @ `Out of "${ingredient}"`
@@ -28,28 +26,25 @@ const pizza_place = hub.endpoint @ ep => ::
               order: msg.order
 
           async err => ::
-            console.log @: err, pkt, ep
+            console.log @: err, msg, ep
           
       
   const cook = hub.endpoint @ ep => ::
     return @{}
-      async on_msg(pkt) ::
-        const msg = pkt.json()
+      async on_msg({msg}) ::
         console.log @ 'cook msg', msg
         await ep.to(qa).send @:
           order: msg.order
 
   const qa = hub.endpoint @ ep => ::
     return @{}
-      async on_msg(pkt) ::
-        const msg = pkt.json()
+      async on_msg({msg}) ::
         console.log @ 'qa msg', msg
         await ep.to(delivery).send @:
           order: msg.order
 
   const delivery = hub.endpoint @ ep =>
-    async (pkt) => ::
-      const msg = pkt.json()
+    async ({msg}) => ::
       console.log @ 'out for delivery', @# msg.order.address
 
   const storage = hub.endpoint @ ep => ::
@@ -61,13 +56,12 @@ const pizza_place = hub.endpoint @ ep => ::
       'red sauce': 10
       
     return @{}
-      async on_msg(pkt) ::
-        const msg = pkt.json()
-        if pkt.op.token ::
+      async on_msg({msg, reply}) ::
+        if reply ::
           const {ingredient} = msg
           const hasOne = 0 < freezer[ingredient]--
           
-          await pkt.op.reply().answer @: hasOne, ingredient
+          await reply.answer @: hasOne, ingredient
           
 
   return @{}
@@ -76,8 +70,7 @@ const pizza_place = hub.endpoint @ ep => ::
       console.log @ 'pizza_place on_ready'
       
       
-    async on_msg(pkt) ::
-      const msg = pkt.json()
+    async on_msg({msg}) ::
       console.log @ 'pizza_place msg', msg, msg.ingredients
       if msg.ingredients ::
         console.log @ 'sending to assembly', assemble
