@@ -1,11 +1,5 @@
 const deliver = @{} 'direct': true, 'datagram': true
 
-const pkt_msg = @{} __proto__: null
-  get msg() :: return this.pkt.json()
-  get reply() :: return this.pkt.op.reply()
-  get anon() :: return this.pkt.op.anon()
-
-
 export default sink
 export function sink(_recv_, ep, tgt, fallback) ::
   const on_msg = tgt.on_msg
@@ -25,6 +19,12 @@ export function sink(_recv_, ep, tgt, fallback) ::
   Object.assign @ ep, @{} isAlive, shutdown
   const by_msgid = ep.createStateMap ? ep.createStateMap() : new Map()
 
+  const pkt_msg = @{} __proto__: null
+    get msg() :: return ep.msg_reviver(this.pkt)
+    get reply() :: return this.pkt.op.reply()
+    get anon() :: return this.pkt.op.anon()
+
+
   return dispatch_pkt
 
 
@@ -36,7 +36,7 @@ export function sink(_recv_, ep, tgt, fallback) ::
     try ::
       if pkt.is_pkt_json ::
         const op = pkt.op, {msgid, kind} = op
-        if msgid && null == op.resolve(pkt.json()) ::
+        if msgid && null == op.resolve(ep.msg_reviver(pkt)) ::
           return // handled by op.resolve
 
         if pkt.is_multi_pkt ::

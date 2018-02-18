@@ -1,4 +1,5 @@
 import ep_proto from './ep_kinds/index.jsy'
+import as_endpoint_api from './endpoint.jsy'
 import sink from './sink.jsy'
 
 const default_plugin_options = @{}
@@ -44,9 +45,10 @@ export function endpoint_plugin(plugin_options) ::
         return create @ random(6, true), on_init
 
       function create(id_target, on_init) ::
-        const ep = pi_msgs.as @: id_target, id_route
+        const ep0 = pi_msgs.as @: id_target, id_route
         // capture the _recv_ method
-        const _recv_ = ep._recv_; delete ep._recv_
+        const _recv_ = ep0._recv_; delete ep0._recv_
+        const ep = as_endpoint_api(ep0)
 
         // use on_init to extended ep; see abstract.jsy for notes
         const ready = Promise

@@ -1,0 +1,30 @@
+export const sym_sampi = '\u03E0' // 'Ϡ'
+
+export const ep_api = @{}
+  _recv_: undefined
+  msg_target_reviver
+  msg_reviver(pkt) ::
+    return pkt.json @ msg_target_reviver(this)
+  as_target(addr) :: return () => this.to(addr)
+
+
+export default as_endpoint_api
+export function as_endpoint_api(ep) ::
+  return Object.assign @ ep, ep_api
+
+
+export function msg_target_reviver(ep) ::
+  let db = new Set()
+
+  return function(k,v) ::
+    if sym_sampi === k ::
+      db.add(this)
+      return v
+
+    if db.has(v) ::
+      v = ep.as_target(v)
+
+    // root object; clear out the db
+    if this === v :: db.clear(); db = null
+    return v
+

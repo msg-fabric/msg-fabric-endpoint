@@ -1,3 +1,4 @@
+export * from './endpoint.jsy'
 export * from './sink.jsy'
 export * from './plugin.jsy'
 export {default as default} from './plugin.jsy'
