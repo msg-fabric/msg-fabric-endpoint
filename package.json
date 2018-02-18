@@ -1,6 +1,6 @@
 {
   "name": "msg-fabric-endpoint",
-  "version": "0.0.0",
+  "version": "0.5.0",
   "description": "Endpoints for msg-fabric",
   "license": "BSD-2-Clause",
   "author": "Shane Holloway <shane.holloway@ieee.org>",
@@ -13,35 +13,39 @@
     "url": "git+ssh://git@github.com/shanewholloway/msg-fabric-endpoint.git"
   },
   "keywords": [
-    "ecosystem:msg-fabric"
+    "ecosystem:msg-fabric",
+    "distributed live object",
+    "message-passing",
+    "distributed object",
+    "distributed",
+    "actors",
+    "message",
+    "passing"
   ],
   "files": [
-    "dist/",
-    "code/",
-    "test/"
+    "cjs/",
+    "esm/",
+    "umd/"
   ],
-  "main": "dist/index",
-  "module": "dist/index.mjs",
+  "main": "cjs/index.js",
+  "module": "esm/index.js",
+  "browser": "umd/msg-fabric-endpoint.js",
   "devDependencies": {
+    "msg-fabric-core": "file:../msg-fabric-core",
     "babel-cli": "^6.26.0",
-    "babel-preset-jsy": "^0.9.4",
-    "msg-fabric-core": "github:shanewholloway/msg-fabric-core",
-    "msg-fabric-packet-stream": "github:shanewholloway/msg-fabric-packet-stream",
-    "msg-fabric-protocols": "github:shanewholloway/msg-fabric-protocols",
-    "rollup": "^0.52.1",
-    "rollup-plugin-babel": "^3.0.2",
-    "rollup-plugin-replace": "^2.0.0"
+    "babel-preset-jsy": "^0.10.1",
+    "rollup": "^0.56.0",
+    "rollup-plugin-jsy-babel": "^1.0.1",
+    "rollup-plugin-uglify": "^3.0.0",
+    "uglify-es": "^3.3.10"
   },
   "babel": {
     "presets": "jsy/lean"
   },
   "scripts": {
-    "clean": "rm -rf ./dist/*",
+    "clean": "rm cjs/* esm/* umd/*",
     "build": "rollup --config",
     "watch": "npm -s run build -- --watch",
-    "demo": "babel-node --extensions .js,.jsy test/playground.jsy",
-    "demo:build": "babel -s inline -x .js,.jsy test -d dist-test ",
-    "demo:watch": "npm -s run test:build -- --watch",
     "pretest": "npm -s run build",
     "test": "true"
   }

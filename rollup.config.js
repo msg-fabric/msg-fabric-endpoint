@@ -1,39 +1,27 @@
-import rpi_babel from 'rollup-plugin-babel'
-import rpi_replace from 'rollup-plugin-replace'
+import pkg from './package.json'
+import {minify} from 'uglify-es'
+import rpi_jsy from 'rollup-plugin-jsy-babel'
+import rpi_uglify from 'rollup-plugin-uglify'
 
 const sourcemap = 'inline'
+const plugins = [rpi_jsy()]
 
-const external = ['crypto']
+const ugly = { warnings: true, output: {comments: false, max_line_len: 256}}
+const prod_plugins = null && plugins.concat([rpi_uglify(ugly, minify)])
 
-const plugins = [jsy_plugin()]
-const replace_prod = {'process.env.NODE_ENV': "'production'"}
-const plugins_prod = plugins.concat([rpi_replace({values: replace_prod})])
+const external = []
 
 export default [
 	{ input: 'code/index.jsy',
 		output: [
-      { file: `dist/index.js`, format: 'cjs' },
-      { file: `dist/index.mjs`, format: 'es' },
+      { file: pkg.module, format: 'es', sourcemap },
+      { file: pkg.main, format: 'cjs', sourcemap, exports: 'named' },
     ],
-    sourcemap, external, plugins },
+    external, plugins },
 
-	{ input: 'code/index.jsy',
-		output: { file: `dist/browser.amd.js`, format: 'amd' },
-    sourcemap, external:[], plugins: plugins_prod },
+	prod_plugins &&
+    { input: 'code/index.jsy',
+      output: { file: pkg.browser, format: 'umd', name: 'msg-fabric-endpoint', sourcemap, exports: 'named' },
+      external:[], plugins: prod_plugins },
 
-	{ input: 'code/ep_kinds/index.jsy',
-		output: { file: `dist/ep_kinds.mjs`, format: 'es' },
-    sourcemap, external, plugins },
-
-]
-
-
-
-
-function jsy_plugin() {
-  const jsy_preset = [ 'jsy/lean', { no_stage_3: true, modules: false } ]
-  return rpi_babel({
-    exclude: 'node_modules/**',
-    presets: [ jsy_preset ],
-    plugins: [],
-    babelrc: false }) }
+].filter(e=>e)
