@@ -31,9 +31,9 @@
   "module": "esm/index.js",
   "browser": "umd/msg-fabric-endpoint.js",
   "devDependencies": {
-    "msg-fabric-core": "file:../msg-fabric-core",
     "babel-cli": "^6.26.0",
     "babel-preset-jsy": "^0.10.1",
+    "msg-fabric-core": "^0.5.0",
     "rollup": "^0.56.1",
     "rollup-plugin-jsy-babel": "^1.0.1",
     "rollup-plugin-uglify": "^3.0.0",
