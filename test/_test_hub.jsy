@@ -1,4 +1,4 @@
-import Hub from 'msg-fabric-core/esm/msg-fabric-core-node.js'
+import Hub from 'msg-fabric-core'
 import endpoint from '../esm'
 
 export default Hub.plugin @
