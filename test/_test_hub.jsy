@@ -1,5 +1,4 @@
-import Hub from 'msg-fabric-core'
-import endpoint from '../esm'
+const Hub = require('msg-fabric-core')
+const {endpoint_plugin} = require('..')
 
-export default Hub.plugin @
-  endpoint()
+module.exports = exports = Hub.plugin(endpoint_plugin())

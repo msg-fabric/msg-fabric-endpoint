@@ -31,42 +31,39 @@ export function endpoint_plugin(plugin_options) ::
   return function(hub) ::
     const pi_msgs = hub.msgs, random = hub.data_utils.random
 
-    const pi = createEndpointPlugin(hub.local)
-    pi.createEndpointPlugin = createEndpointPlugin
-    return hub[plugin_options.plugin_name] = pi
+    const pi_endpoint = endpoint.bind(null)
+    Object.assign @ pi_endpoint, @{} endpoint, create, tgt_router: hub.local
+    Object.setPrototypeOf @ pi_endpoint, ep_proto
+    return hub[plugin_options.plugin_name] = pi_endpoint
 
-    function createEndpointPlugin(tgt_router) ::
-      const {id_route} = tgt_router
+    function endpoint(on_init) ::
+      return (this || pi_endpoint).create @ random(6, true), on_init
 
-      Object.setPrototypeOf @ endpoint, ep_proto
-      return Object.assign @ endpoint, @{} endpoint, create
+    function create(id_target, on_init) ::
+      const tgt_router = (this || pi_endpoint).tgt_router
 
-      function endpoint(on_init) ::
-        return create @ random(6, true), on_init
+      const ep0 = pi_msgs.as @: id_target, id_route: tgt_router.id_route
+      // capture the _recv_ method
+      const _recv_ = ep0._recv_; delete ep0._recv_
+      const ep = as_endpoint_api(ep0)
 
-      function create(id_target, on_init) ::
-        const ep0 = pi_msgs.as @: id_target, id_route
-        // capture the _recv_ method
-        const _recv_ = ep0._recv_; delete ep0._recv_
-        const ep = as_endpoint_api(ep0)
+      // use on_init to extended ep; see abstract.jsy for notes
+      const ready = Promise
+        .resolve @ 'function' === typeof on_init ? on_init(ep, hub) : on_init
+        .then @ _after_init
 
-        // use on_init to extended ep; see abstract.jsy for notes
-        const ready = Promise
-          .resolve @ 'function' === typeof on_init ? on_init(ep, hub) : on_init
-          .then @ _after_init
-
-        ::
-          const ep_tgt = ep.toJSON()
-          return Object.defineProperties @ ep_tgt, @{}
-            ready: @{} value: ready.then @ () => ep_tgt
+      ::
+        const ep_tgt = ep.toJSON()
+        return Object.defineProperties @ ep_tgt, @{}
+          ready: @{} value: ready.then @ () => ep_tgt
 
 
-        function _after_init(tgt) ::
-          if null == tgt ::
-            throw new TypeError @ `Expected endpoint init to return a closure or interface`
+      function _after_init(tgt) ::
+        if null == tgt ::
+          throw new TypeError @ `Expected endpoint init to return a closure or interface`
 
-          tgt_router.registerTarget @ id_target,
-            sink @ _recv_, ep, tgt, fallback
+        tgt_router.registerTarget @ id_target,
+          sink @ _recv_, ep, tgt, fallback
 
-          return tgt.on_ready ? tgt.on_ready(ep, hub) : tgt
+        return tgt.on_ready ? tgt.on_ready(ep, hub) : tgt
 

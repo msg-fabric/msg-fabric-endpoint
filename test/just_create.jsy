@@ -1,5 +1,14 @@
 require('source-map-support').install()
 
-import TestHub from './_test_hub.jsy'
-const hub = new TestHub()
+const TestHub = require('./_test_hub.jsy')
+const hub = new TestHub('$ep-test$')
 
+const ep_rand = hub.endpoint(()=> ()=> null)
+console.dir({ep_rand}, {colors: true})
+
+const ep_named = hub.endpoint.create('neato', ()=> ()=> null)
+console.dir({ep_named}, {colors: true})
+
+const ep_p2p = hub.endpoint.usingRouter(hub.p2p)
+  .endpoint(()=> ()=> null)
+console.dir({ep_p2p}, {colors: true})

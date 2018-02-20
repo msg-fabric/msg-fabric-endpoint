@@ -1,13 +1,21 @@
 export const ep_proto = Object.create @
   Object.getPrototypeOf @ function(){}
-  @{}
-    _as_target_: @{} get() ::
-      const self = Object.create(this)
-      // 'unwrap' by passing target back out of endpoint() call
-      self.endpoint = v => v
-      return self
+  @{} _add_kind_: @{} value(kinds) ::
+    return Object.assign @ this, kinds
 
-    _add_kind_: @{} value(kinds) ::
-      return Object.assign @ this, kinds
+
+ep_proto._add_kind_ @:
+  _unwrap_(...args) ::
+    return Object.assign @
+      Object.create(this)
+      ...args
+
+  _as_target_() ::
+    return this._unwrap_ @:
+      endpoint: v => v
+
+  usingRouter(tgt_router) ::
+    return this._unwrap_ @:
+      tgt_router
 
 export default ep_proto

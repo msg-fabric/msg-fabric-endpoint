@@ -1,6 +1,6 @@
 {
   "name": "msg-fabric-endpoint",
-  "version": "0.5.2",
+  "version": "0.5.3-0",
   "description": "Endpoints for msg-fabric",
   "license": "BSD-2-Clause",
   "author": "Shane Holloway <shane.holloway@ieee.org>",

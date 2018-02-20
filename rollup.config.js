@@ -20,8 +20,8 @@ export default [
     external, plugins },
 
 	prod_plugins &&
-    { input: 'code/index.jsy',
-      output: { file: pkg.browser, format: 'umd', name: 'msg-fabric-endpoint', sourcemap, exports: 'named' },
+    { input: 'code/index.default.jsy',
+      output: { file: pkg.browser, format: 'umd', name: 'msg-fabric-endpoint', sourcemap },
       external:[], plugins: prod_plugins },
 
 ].filter(e=>e)
