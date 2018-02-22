@@ -32,7 +32,7 @@ function api_bind_rpc(api, ep, hub) ::
 
   return Object.create @ rpc_api, @{}
     lookup_op: @{} value: lookup_op
-    err_from: @{} value: ep.ep_self()
+    err_from: @{} value: ep.toJSON()
 
 
 const rpc_api = @:
