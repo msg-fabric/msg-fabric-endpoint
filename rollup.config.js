@@ -30,10 +30,10 @@ export default [
       output: { file: pkg.browser, format: 'umd', name: 'msg-fabric-endpoint' },
       external:[], plugins: prod_plugins },
 
-  { input: 'test/unit/index.browser.js',
+  { input: 'test/unittest/browser.js',
     output: {
-      file: 'test/_unittest.iife.js',
-      globals: {'msg-fabric-core': 'msg-fabric-core'},
+      file: 'test/unittest/browser.iife.js',
       format: 'iife', sourcemap },
     external: [], plugins: test_plugins },
+
 ].filter(e=>e)
