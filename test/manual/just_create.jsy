@@ -1,6 +1,6 @@
 require('source-map-support').install()
 
-const TestHub = require('./_test_hub.jsy')
+const TestHub = require('../_setup')
 const hub = new TestHub('$ep-test$')
 
 const ep_rand = hub.endpoint(()=> ()=> null)

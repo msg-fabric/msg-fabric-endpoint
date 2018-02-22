@@ -1,4 +1,0 @@
-const Hub = require('msg-fabric-core')
-const {endpoint_plugin} = require('..')
-
-module.exports = exports = Hub.plugin(endpoint_plugin())

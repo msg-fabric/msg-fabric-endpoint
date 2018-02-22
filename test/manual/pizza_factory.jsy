@@ -1,6 +1,6 @@
 require('source-map-support').install()
 
-import TestHub from './_test_hub.jsy'
+import TestHub from '../_setup'
 
 const hub = new TestHub()
 
