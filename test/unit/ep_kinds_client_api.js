@@ -1,15 +1,18 @@
 import { Hub, expect, newLog } from './_setup'
-
-describe @ 'ep_kinds.client', @=> ::
+describe @ 'ep_kinds.client_api', @=> ::
   var hub, log
   beforeEach @=> ::
     hub = Hub.create('$unit$')
     log = newLog()
 
-  describe @ 'flow', @=> ::
-    it @ 'normal client init', @=>> ::
-      const tgt = hub.endpoint.client @=> ::
-        log @ 'client'
+  describe @ 'create', @=> ::
+
+    it @ 'client_api', @=>> ::
+      const tgt = hub.endpoint.client_api @
+        function () ::
+          log @ 'client'
+
+        { /* ... api ... */ }
 
       log @ 'ep_created'
 
@@ -24,12 +27,14 @@ describe @ 'ep_kinds.client', @=> ::
         'ep_created'
         'client'
 
+    it @ 'async client_api', @=>> ::
+      const tgt = hub.endpoint.client_api @
+        async function () ::
+          log @ 'client 0'
+          await 0
+          log @ 'client 1'
 
-    it @ 'async client init', @=>> ::
-      const tgt = hub.endpoint.client @=>> ::
-        log @ 'client 0'
-        await 0
-        log @ 'client 1'
+        { /* ... api ... */ }
 
       log @ 'ep_created'
 

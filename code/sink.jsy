@@ -13,8 +13,8 @@ export function sink(_recv_, ep, tgt, fallback) ::
   const shutdown = (err, extra) => ::
     if alive ::
       alive = false
-      (tgt.on_shutdown ? tgt : fallback)
-        .on_shutdown(ep, err, extra)
+      const tgt_ = tgt.on_shutdown ? tgt : fallback
+      tgt_.on_shutdown(ep, err, extra)
 
   Object.assign @ ep, @{} isAlive, shutdown
   const by_msgid = ep.createStateMap ? ep.createStateMap() : new Map()

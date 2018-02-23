@@ -1,39 +1,31 @@
+import {o_create, o_assign} from './_utils'
 import ep_proto from './ep_proto.jsy'
 
 ep_proto._add_kind_ @:
   client(on_client) ::
-    const target = as_client_target(on_client)
-    this.endpoint @ target
-    return target.done
+    const client = as_client_target(on_client)
+    this.endpoint(client)
+    return client.done
 
   client_api(on_client, api) ::
-    // get api_parallel as target instead of endpoint
+    // get api_parallel as closure instead of an endpoint instance
     const ep_api = this._as_target_().api_parallel(api)
-    const target = as_client_target(on_client)
+    const client = as_client_target(on_client)
     this.endpoint @ (ep, hub) =>
-      Object.assign @ target, ep_api(ep, hub)
-    return target.done
+      o_assign @ client, ep_api(ep, hub)
+    return client.done
 
-
-const ep_client_api = @{}
-  async on_ready(ep, hub) ::
-    this._resolve @ await this.on_client(ep, hub)
-    await ep.shutdown()
-  on_send_error(ep, err) ::
-    this._reject(err)
-  on_shutdown(ep, err) ::
-    err ? this._reject(err) : this._resolve()
 
 export function as_client_target(on_client) ::
-  const target = Object.create @ ep_client_api
-  if 'function' !== typeof on_client ::
-    if on_client.on_ready ::
-      throw new TypeError @ `Use "on_client()" instead of "on_ready()" with clientEndpoint`
-    Object.assign @ target, on_client
-  else ::
-    target.on_client = on_client
+  let client
+  const done = new Promise @ (resolve, reject) => ::
+    client = @{}
+      on_ready(ep, hub) ::
+        done.then(ep.shutdown, ep.shutdown)
+        resolve @ on_client(ep, hub)
+      on_shutdown(ep, err) ::
+        err ? reject(err) : resolve()
 
-  target.done = new Promise @ (resolve, reject) => ::
-    target._resolve = resolve
-    target._reject = reject
-  return target
+  client.done = done
+  return client
+  

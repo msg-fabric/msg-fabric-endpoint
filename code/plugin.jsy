@@ -40,11 +40,11 @@ export function endpoint_plugin(plugin_options) ::
     Object.setPrototypeOf @ pi_endpoint, ep_proto
     return hub[plugin_options.plugin_name] = pi_endpoint
 
-    function endpoint(on_init) ::
+    function endpoint(tgt) ::
       const self = this || pi_endpoint
-      return self.create @ random(6, true), on_init
+      return self.create @ random(6, true), tgt
 
-    function create(id_target, on_init) ::
+    function create(id_target, target) ::
       const self = this || pi_endpoint
       const tgt_router = self.tgt_router
 
@@ -53,9 +53,13 @@ export function endpoint_plugin(plugin_options) ::
       const _recv_ = ep0._recv_; delete ep0._recv_
       const ep = as_endpoint_api(ep0)
 
-      // use on_init to extended ep; see abstract.jsy for notes
+      // use target to extended ep; see abstract.jsy for notes
       const ready = Promise
-        .resolve @ 'function' === typeof on_init ? on_init(ep, hub) : on_init
+        .resolve @
+          'function' === typeof target ? target(ep, hub)
+          : 'function' === typeof target.on_init
+            ? _on_init(target, ep, hub)
+            : target
         .then @ _after_init
 
       ::
@@ -73,3 +77,6 @@ export function endpoint_plugin(plugin_options) ::
 
         return tgt.on_ready ? tgt.on_ready(ep, hub) : tgt
 
+async function _on_init(target, ep, hub) ::
+  await target.on_init(ep, hub)
+  return target

@@ -1,3 +1,4 @@
+import {o_create, o_assign} from './_utils'
 import ep_proto from './ep_proto.jsy'
 
 ep_proto._add_kind_ @:
@@ -30,12 +31,12 @@ function api_bind_rpc(api, ep, hub) ::
         const fn = api[pfx + op]
         return fn ? fn.bind(api) : fn
 
-  return Object.create @ rpc_api, @{}
+  return o_create @ rpc_api, @{}
     lookup_op: @{} value: lookup_op
     err_from: @{} value: ep.toJSON()
 
 
-const rpc_api = @:
+const rpc_api = @{}
   async invoke(reply, op, cb) ::
     const api_fn = await this.resolve_op @ reply, op
     if undefined === api_fn :: return
