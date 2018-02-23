@@ -9,9 +9,6 @@ const default_plugin_options = @{}
     console.warn @ 'ENDPOINT MSG:', pkt
   on_warn(ep, msg, extra) ::
     console.warn @ 'ENDPOINT WARN:', msg
-  on_send_error(ep, err, extra) ::
-    // TODO: plumb through ep.on_send_error
-    console.error @ 'ENDPOINT SEND ERROR:', err
   on_error(ep, err, extra) ::
     console.error @ 'ENDPOINT ERROR:', err
     // return false to prevent auto-shutdown
@@ -33,7 +30,7 @@ export function endpoint_plugin(plugin_options) ::
 
     const pi_endpoint = endpoint.bind(null)
     Object.assign @ pi_endpoint, @{}
-      endpoint, create
+      endpoint, create, newTargetId
       tgt_router: hub.local
       ep_msgs: Object.create(hub.msgs)
 
@@ -42,7 +39,10 @@ export function endpoint_plugin(plugin_options) ::
 
     function endpoint(tgt) ::
       const self = this || pi_endpoint
-      return self.create @ random(6, true), tgt
+      return self.create @ self.newTargetId(), tgt
+
+    function newTargetId() ::
+      return random(6, true)
 
     function create(id_target, target) ::
       const self = this || pi_endpoint
