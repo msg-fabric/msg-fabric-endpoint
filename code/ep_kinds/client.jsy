@@ -1,7 +1,13 @@
-import {o_create, o_assign} from './_utils'
+import {o_create, o_assign} from '../_utils'
 import ep_proto from './ep_proto.jsy'
 
 ep_proto._add_kind_ @:
+  clientOf(...args) ::
+    const on_client = args.pop()
+    const tgt = args.shift()
+    return this.client @ async (ep, hub) =>
+      on_client @ ep.api_to(tgt, ...args), ep, hub
+
   client(on_client) ::
     const client = as_client_target(on_client)
     this.endpoint(client)
@@ -22,10 +28,15 @@ export function as_client_target(on_client) ::
     client = @{}
       on_ready(ep, hub) ::
         done.then(ep.shutdown, ep.shutdown)
+        ep.api_to = api_to
         resolve @ on_client(ep, hub)
       on_shutdown(ep, err) ::
         err ? reject(err) : resolve()
 
   client.done = done
   return client
-  
+
+function api_to(tgt, ctx) ::
+  tgt = this.to(tgt)
+  return (op, kw) =>
+    tgt.query @: op, kw, ctx

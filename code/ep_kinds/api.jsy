@@ -1,4 +1,4 @@
-import {o_create, o_assign} from './_utils'
+import {o_create, o_assign} from '../_utils'
 import ep_proto from './ep_proto.jsy'
 
 ep_proto._add_kind_ @:
@@ -9,7 +9,8 @@ ep_proto._add_kind_ @:
       const rpc = api_bind_rpc(api, ep, hub)
       return @{} rpc,
         async on_msg({msg, anon}) ::
-          await rpc.invoke @ anon, msg.op,
+          await rpc.invoke @ anon,
+            null == msg ? null : msg.op,
             api_fn => api_fn(msg.kw, msg.ctx)
 
   api_inorder(api) ::
@@ -17,7 +18,8 @@ ep_proto._add_kind_ @:
       const rpc = api_bind_rpc(api, ep, hub)
       return @{} rpc,
         async on_msg({msg, anon}) ::
-          await rpc.invoke_gated @ anon, msg.op,
+          await rpc.invoke_gated @ anon,
+            null == msg ? null : msg.op,
             api_fn => api_fn(msg.kw, msg.ctx)
 
 
@@ -55,18 +57,18 @@ const rpc_api = @{}
 
   async resolve_op(reply, op) ::
     if 'string' !== typeof op ::
-      await reply.send @: op, err_from: this.err_from
+      await reply.send @: op, err_from: this.err_from,
         error: @{} message: 'Invalid operation', code: 400
       return
 
     try ::
       const api_fn = await this.lookup_op(op)
       if ! api_fn ::
-        await reply.send @: op, err_from: this.err_from
+        await reply.send @: op, err_from: this.err_from,
           error: @{} message: 'Unknown operation', code: 404
       return api_fn
     catch err ::
-      await reply.send @: op, err_from: this.err_from
+      await reply.send @: op, err_from: this.err_from,
         error: @{} message: `Invalid operation: ${err.message}`, code: 500
 
   async answer(reply, api_fn, cb) ::

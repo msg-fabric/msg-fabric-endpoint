@@ -1,4 +1,4 @@
-import { Hub, expect } from './_setup'
+import { Hub, sym_sampi, expect } from './_setup'
 
 describe @ 'Basic endpoint create', @=> ::
   var hub
@@ -85,7 +85,6 @@ describe @ 'Basic endpoint create', @=> ::
 
 
 function check_id(hub, id, tgt) ::
-  const sym_sampi = '\u03E0' // 'Ϡ'
   if null == id ::
     expect @
       tgt[sym_sampi].startsWith @
