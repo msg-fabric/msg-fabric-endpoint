@@ -30,7 +30,7 @@ export function endpoint_plugin(plugin_options) ::
 
     const pi_endpoint = endpoint.bind(null)
     Object.assign @ pi_endpoint, @{}
-      endpoint, create, newTargetId
+      endpoint, create, newTargetId, as_endpoint_api
       tgt_router: hub.local
       ep_msgs: Object.create(hub.msgs)
 
@@ -51,7 +51,7 @@ export function endpoint_plugin(plugin_options) ::
       const ep0 = self.ep_msgs.as @: id_target, id_route: tgt_router.id_route
       // capture the _recv_ method
       const _recv_ = ep0._recv_; delete ep0._recv_
-      const ep = as_endpoint_api(ep0)
+      const ep = self.as_endpoint_api(ep0)
 
       // use target to extended ep; see abstract.jsy for notes
       const ready = Promise

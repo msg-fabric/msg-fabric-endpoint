@@ -32,24 +32,24 @@ describe @ 'Basic endpoint create', @=> ::
 
   describe @ 'endpoint.endpoint()', @=> ::
     it @ 'endpoint with on_msg closure', @=>> :: 
-      const tgt = hub.endpoint @ ep => () => null
+      const tgt = hub.endpoint.endpoint @ ep => () => null
       check_id(hub, null, tgt)
 
     it @ 'endpoint with hub and on_msg closure', @=>> :: 
-      const tgt = hub.endpoint @ (ep, ep_hub) => ::
+      const tgt = hub.endpoint.endpoint @ (ep, ep_hub) => ::
         expect(ep_hub).to.equal(hub)
         return () => null
 
       check_id(hub, null, tgt)
 
     it @ 'endpoint with object closure', @=>> :: 
-      const tgt = hub.endpoint @ ep => @:
+      const tgt = hub.endpoint.endpoint @ ep => @:
         on_msg() ::
 
       check_id(hub, null, tgt)
 
     it @ 'endpoint with hub and object closure', @=>> :: 
-      const tgt = hub.endpoint @ (ep, ep_hub) => ::
+      const tgt = hub.endpoint.endpoint @ (ep, ep_hub) => ::
         expect(ep_hub).to.equal(hub)
         return @{} on_msg() ::
 

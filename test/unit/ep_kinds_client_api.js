@@ -7,7 +7,7 @@ describe @ 'ep_kinds.client_api', @=> ::
 
   describe @ 'create', @=> ::
 
-    it @ 'client_api', @=>> ::
+    it.skip @ 'client_api', @=>> ::
       const tgt = hub.endpoint.client_api @
         function () ::
           log @ 'client'
@@ -20,6 +20,8 @@ describe @ 'ep_kinds.client_api', @=> ::
       .to.deep.equal @#
         'ep_created'
 
+      // TODO: add api tests
+
       await tgt
 
       expect(log.calls)
@@ -27,7 +29,7 @@ describe @ 'ep_kinds.client_api', @=> ::
         'ep_created'
         'client'
 
-    it @ 'async client_api', @=>> ::
+    it.skip @ 'async client_api', @=>> ::
       const tgt = hub.endpoint.client_api @
         async function () ::
           log @ 'client 0'
@@ -41,6 +43,8 @@ describe @ 'ep_kinds.client_api', @=> ::
       expect(log.calls)
       .to.deep.equal @#
         'ep_created'
+
+      // TODO: add api tests
 
       await tgt
 
