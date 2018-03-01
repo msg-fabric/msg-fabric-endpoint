@@ -54,7 +54,7 @@ export function endpoint_plugin(plugin_options) ::
       const ep = self.as_endpoint_api(ep0)
 
       // use target to extended ep; see abstract.jsy for notes
-      const ready = Promise
+      const registered = Promise
         .resolve @
           'function' === typeof target ? target(ep, hub)
           : 'function' === typeof target.on_init
@@ -62,10 +62,16 @@ export function endpoint_plugin(plugin_options) ::
             : target
         .then @ _after_init
 
+      const ready = registered.then @ _after_registered
+
       ::
-        const ep_tgt = ep.toJSON()
-        return Object.defineProperties @ ep_tgt, @{}
-          ready: @{} value: ready.then @ () => ep_tgt
+        const ep_tgt = ep.toJSON(), fn_tgt = () => ep_tgt
+        ep_tgt.ready = ready.then @ fn_tgt
+
+        const res = registered.then @ fn_tgt
+        Object.assign @ res, ep_tgt
+        res.toJSON = ep.toJSON
+        return res
 
 
       function _after_init(tgt) ::
@@ -75,6 +81,9 @@ export function endpoint_plugin(plugin_options) ::
         tgt_router.registerTarget @ id_target,
           sink @ _recv_, ep, tgt, fallback
 
+        return tgt
+
+      function _after_registered(tgt) ::
         return tgt.on_ready ? tgt.on_ready(ep, hub) : tgt
 
 async function _on_init(target, ep, hub) ::

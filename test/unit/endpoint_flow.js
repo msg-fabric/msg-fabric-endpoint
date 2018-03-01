@@ -233,20 +233,20 @@ describe @ 'Endpoint flow', @=> ::
           expect(hub_r).to.equal(hub)
           expect(hub_r).to.equal(hub_i)
 
-    log @ 'ep_created', tgt
+    log @ 'ep_created', tgt.toJSON()
 
     expect(log.calls)
     .to.deep.equal @#
-      @[] 'init', {ep: tgt}
-      @[] 'ep_created', tgt
+      @[] 'init', {ep: tgt.toJSON()}
+      @[] 'ep_created', tgt.toJSON()
 
     await tgt.ready
 
     expect(log.calls)
     .to.deep.equal @#
-      @[] 'init', {ep: tgt}
-      @[] 'ep_created', tgt
-      @[] 'ready', {ep: tgt}
+      @[] 'init', {ep: tgt.toJSON()}
+      @[] 'ep_created', tgt.toJSON()
+      @[] 'ready', {ep: tgt.toJSON()}
 
 
   it @ 'object arguments', @=>> ::
@@ -263,19 +263,19 @@ describe @ 'Endpoint flow', @=> ::
         expect(hub_r).to.equal(hub)
         expect(hub_r).to.equal(this.hub_i)
 
-    log @ 'ep_created', tgt
+    log @ 'ep_created', tgt.toJSON()
 
     expect(log.calls)
     .to.deep.equal @#
-      @[] 'init', {ep: tgt}
-      @[] 'ep_created', tgt
+      @[] 'init', {ep: tgt.toJSON()}
+      @[] 'ep_created', tgt.toJSON()
 
     await tgt.ready
 
     expect(log.calls)
     .to.deep.equal @#
-      @[] 'init', {ep: tgt}
-      @[] 'ep_created', tgt
-      @[] 'ready', {ep: tgt}
+      @[] 'init', {ep: tgt.toJSON()}
+      @[] 'ep_created', tgt.toJSON()
+      @[] 'ready', {ep: tgt.toJSON()}
 
 
