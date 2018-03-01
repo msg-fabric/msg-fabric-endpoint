@@ -5,8 +5,8 @@ ep_proto._add_kind_ @:
   api_bind_rpc
   api(api) :: return this.api_parallel(api)
   api_parallel(api) ::
-    return this.endpoint @ function (ep, hub) ::
-      const rpc = api_bind_rpc(api, ep, hub)
+    return this.endpoint @ async function (ep, hub) ::
+      const rpc = await api_bind_rpc(api, ep, hub)
       return @{} rpc,
         async on_msg({msg, anon}) ::
           await rpc.invoke @ anon,
@@ -14,8 +14,8 @@ ep_proto._add_kind_ @:
             api_fn => api_fn(msg.kw, msg.ctx)
 
   api_inorder(api) ::
-    return this.endpoint @ function (ep, hub) ::
-      const rpc = api_bind_rpc(api, ep, hub)
+    return this.endpoint @ async function (ep, hub) ::
+      const rpc = await api_bind_rpc(api, ep, hub)
       return @{} rpc,
         async on_msg({msg, anon}) ::
           await rpc.invoke_gated @ anon,
@@ -23,7 +23,10 @@ ep_proto._add_kind_ @:
             api_fn => api_fn(msg.kw, msg.ctx)
 
 
-function api_bind_rpc(api, ep, hub) ::
+async function api_bind_rpc(api, ep, hub) ::
+  if 'function' === typeof api ::
+    api = await api(ep, hub)
+
   const pfx = api.op_prefix || 'rpc_'
   const lookup_op = api.op_lookup
     ? op => api.op_lookup(pfx + op, ep, hub)
