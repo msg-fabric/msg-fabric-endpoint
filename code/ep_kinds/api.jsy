@@ -28,12 +28,20 @@ async function api_bind_rpc(api, ep, hub) ::
     api = await api(ep, hub)
 
   const pfx = api.op_prefix || 'rpc_'
+  const validate_op = api.op_validate
+    ? op => op.startsWith(pfx) && api.op_validate(op)
+    : op => op.startsWith(pfx)
+
   const lookup_op = api.op_lookup
-    ? op => api.op_lookup(pfx + op, ep, hub)
+    ? @ op => ! validate_op(op) ? null
+        : api.op_lookup(op, ep, hub)
     : 'function' === typeof api
-    ? op => api(pfx + op, ep, hub)
-    : op => ::
-        const fn = api[pfx + op]
+    ? @ op => ! validate_op(op) ? null
+        : api(op, ep, hub)
+    : @ op => ::
+        if ! validate_op(op) ::
+          return null
+        const fn = api[op]
         return fn ? fn.bind(api) : fn
 
   return o_create @ rpc_api, @{}

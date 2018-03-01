@@ -33,7 +33,7 @@ describe @ 'ep_kinds.api', @=> ::
       const c = hub.endpoint.clientOf @ tgt, '$ctx$', async invoke => ::
         log @ 'top of client'
 
-        let a1 = invoke @ 'one', @{} sz:'a', list: [1,2,3], obj: {ans: 1942}
+        let a1 = invoke @ 'rpc_one', @{} sz:'a', list: [1,2,3], obj: {ans: 1942}
         log @ 'after a1 invoke', 'function' === typeof a1.then
 
         a1 = await a1
@@ -58,14 +58,14 @@ describe @ 'ep_kinds.api', @=> ::
 
 
 
-    it @ 'call non-existant method', @=>> ::
+    it @ 'call method without prefix', @=>> ::
       const tgt = hub.endpoint.api @ test_api()
       expect(tgt).to.have.a.property @ sym_sampi
 
       await tgt.ready
 
       const c = await hub.endpoint.clientOf @ tgt, '$ctx$', async invoke => ::
-        const a1 = await invoke @ 'this-should-not-exist'
+        const a1 = await invoke @ 'one'
         log @ 'error', a1.op, a1.error
 
         expect @ a1.err_from
@@ -80,7 +80,33 @@ describe @ 'ep_kinds.api', @=> ::
       expect(api_log.calls).to.deep.equal @#
 
       expect(log.calls).to.deep.equal @#
-        @[] 'error', 'this-should-not-exist', @{} code: 404, message: 'Unknown operation'
+        @[] 'error', 'one', @{} code: 404, message: 'Unknown operation'
+
+
+
+    it @ 'call non-existant method', @=>> ::
+      const tgt = hub.endpoint.api @ test_api()
+      expect(tgt).to.have.a.property @ sym_sampi
+
+      await tgt.ready
+
+      const c = await hub.endpoint.clientOf @ tgt, '$ctx$', async invoke => ::
+        const a1 = await invoke @ 'rpc_this-should-not-exist'
+        log @ 'error', a1.op, a1.error
+
+        expect @ a1.err_from
+        .to.be.a @ 'function'
+        .to.have.a.property @ sym_sampi
+
+        expect @ a1.err_from[sym_sampi]
+        .to.be.a @ 'string'
+        .to.equal @ tgt[sym_sampi]
+
+
+      expect(api_log.calls).to.deep.equal @#
+
+      expect(log.calls).to.deep.equal @#
+        @[] 'error', 'rpc_this-should-not-exist', @{} code: 404, message: 'Unknown operation'
 
 
 
@@ -96,11 +122,11 @@ describe @ 'ep_kinds.api', @=> ::
 
       const c = await hub.endpoint.clientOf @ tgt, '$ctx$', async invoke => ::
         api_log @ 'top'
-        const p_one = invoke @ 'one', @{} order: 1
+        const p_one = invoke @ 'rpc_one', @{} order: 1
         api_log @ 'invoked one'
-        const p_two = invoke @ 'two', @{} order: 2
+        const p_two = invoke @ 'rpc_two', @{} order: 2
         api_log @ 'invoked two'
-        const p_three = invoke @ 'three', @{} order: 3
+        const p_three = invoke @ 'rpc_three', @{} order: 3
         api_log @ 'invoked three'
 
         api_log @ 'awaited one', await p_one
@@ -128,15 +154,15 @@ describe @ 'ep_kinds.api', @=> ::
 
       const c = await hub.endpoint.clientOf @ tgt, '$ctx$', async invoke => ::
         api_log @ 'top'
-        const p_one = invoke @ 'one', @{} order: 1
+        const p_one = invoke @ 'rpc_one', @{} order: 1
         api_log @ 'invoked one'
         api_log @ 'awaited one', await p_one
 
-        const p_two = invoke @ 'two', @{} order: 2
+        const p_two = invoke @ 'rpc_two', @{} order: 2
         api_log @ 'invoked two'
         api_log @ 'awaited two', await p_two
 
-        const p_three = invoke @ 'three', @{} order: 3
+        const p_three = invoke @ 'rpc_three', @{} order: 3
         api_log @ 'invoked three'
         api_log @ 'awaited three', await p_three
 
@@ -170,11 +196,11 @@ describe @ 'ep_kinds.api', @=> ::
 
       const c = await hub.endpoint.clientOf @ tgt, '$ctx$', async invoke => ::
         api_log @ 'top'
-        const p_one = invoke @ 'one', @{} order: 1
+        const p_one = invoke @ 'rpc_one', @{} order: 1
         api_log @ 'invoked one'
-        const p_two = invoke @ 'two', @{} order: 2
+        const p_two = invoke @ 'rpc_two', @{} order: 2
         api_log @ 'invoked two'
-        const p_three = invoke @ 'three', @{} order: 3
+        const p_three = invoke @ 'rpc_three', @{} order: 3
         api_log @ 'invoked three'
 
         api_log @ 'awaited one', await p_one
@@ -205,15 +231,15 @@ describe @ 'ep_kinds.api', @=> ::
 
       const c = await hub.endpoint.clientOf @ tgt, '$ctx$', async invoke => ::
         api_log @ 'top'
-        const p_one = invoke @ 'one', @{} order: 1
+        const p_one = invoke @ 'rpc_one', @{} order: 1
         api_log @ 'invoked one'
         api_log @ 'awaited one', await p_one
 
-        const p_two = invoke @ 'two', @{} order: 2
+        const p_two = invoke @ 'rpc_two', @{} order: 2
         api_log @ 'invoked two'
         api_log @ 'awaited two', await p_two
 
-        const p_three = invoke @ 'three', @{} order: 3
+        const p_three = invoke @ 'rpc_three', @{} order: 3
         api_log @ 'invoked three'
         api_log @ 'awaited three', await p_three
 
