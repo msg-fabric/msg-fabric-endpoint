@@ -1,13 +1,24 @@
-export const ep_proto = Object.create @
+import { o_create, o_assign } from '../_utils'
+
+export const ep_proto = o_create @
   Object.getPrototypeOf @ function(){}
   @{} _add_kind_: @{} value(kinds) ::
-    return Object.assign @ this, kinds
+    return o_assign @ this, kinds
 
 
 ep_proto._add_kind_ @:
+  _ext_list_: []
+  _add_extension_(...extensions) ::
+    this._ext_list_ = this._ext_list_.concat @ extensions
+    return this
+  _apply_extensions_(hub) ::
+    for const ext of this._ext_list_ ::
+      ext(this, hub)
+    return this
+
   _unwrap_(...args) ::
-    return Object.assign @
-      Object.create(this)
+    return o_assign @
+      o_create(this)
       ...args
 
   _as_target_() ::

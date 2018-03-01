@@ -1,4 +1,4 @@
-import {o_create, o_assign} from '../_utils'
+import { o_create, o_assign } from '../_utils'
 import ep_proto from './ep_proto.jsy'
 
 ep_proto._add_kind_ @:

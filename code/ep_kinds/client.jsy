@@ -1,4 +1,4 @@
-import {o_create, o_assign} from '../_utils'
+import { o_create, o_assign } from '../_utils'
 import ep_proto from './ep_proto.jsy'
 
 ep_proto._add_kind_ @:
@@ -28,7 +28,6 @@ export function as_client_target(on_client) ::
     client = @{}
       on_ready(ep, hub) ::
         done.then(ep.shutdown, ep.shutdown)
-        ep.api_to = api_to
         resolve @ on_client(ep, hub)
       on_shutdown(ep, err) ::
         err ? reject(err) : resolve()
@@ -36,7 +35,18 @@ export function as_client_target(on_client) ::
   client.done = done
   return client
 
-function api_to(tgt, ctx) ::
-  tgt = this.to(tgt)
-  return (op, kw) =>
-    tgt.query @: op, kw, ctx
+
+ep_proto._add_extension_ @ (pi_endpoint, hub) => ::
+  const invoke_proxy = @{}
+    has: () => true
+    get: (invoke, prop) =>
+      kw => invoke @ prop, kw
+
+  o_assign @ pi_endpoint.ep_mixin_api, @{}
+    api_to(tgt, ctx) ::
+      tgt = this.to(tgt)
+      return new Proxy @ invoke, invoke_proxy
+
+      function invoke(op, kw) ::
+        return tgt.query @: op, kw, ctx
+

@@ -1,5 +1,6 @@
+import { o_create, o_assign } from './_utils'
 import ep_proto from './ep_kinds/index.jsy'
-import as_endpoint_api from './endpoint.jsy'
+import ep_mixin_api from './endpoint.jsy'
 import sink from './sink.jsy'
 
 const default_plugin_options = @{}
@@ -18,7 +19,7 @@ const default_plugin_options = @{}
 
 export default endpoint_plugin
 export function endpoint_plugin(plugin_options) ::
-  plugin_options = Object.assign @ {}, default_plugin_options, plugin_options
+  plugin_options = o_assign @ {}, default_plugin_options, plugin_options
 
   const fallback = @{} __proto__: null
     on_msg: plugin_options.on_msg
@@ -29,12 +30,14 @@ export function endpoint_plugin(plugin_options) ::
     const random = hub.data_utils.random
 
     const pi_endpoint = endpoint.bind(null)
-    Object.assign @ pi_endpoint, @{}
-      endpoint, create, newTargetId, as_endpoint_api
+    o_assign @ pi_endpoint, @{}
+      endpoint, create, newTargetId
       tgt_router: hub.local
-      ep_msgs: Object.create(hub.msgs)
+      ep_msgs: o_create(hub.msgs)
+      ep_mixin_api: o_assign({}, ep_mixin_api)
 
     Object.setPrototypeOf @ pi_endpoint, ep_proto
+    pi_endpoint._apply_extensions_(hub)
     return hub[plugin_options.plugin_name] = pi_endpoint
 
     function endpoint(tgt) ::
@@ -51,7 +54,7 @@ export function endpoint_plugin(plugin_options) ::
       const ep0 = self.ep_msgs.as @: id_target, id_route: tgt_router.id_route
       // capture the _recv_ method
       const _recv_ = ep0._recv_; delete ep0._recv_
-      const ep = self.as_endpoint_api(ep0)
+      const ep = o_assign @ ep0, self.ep_mixin_api
 
       // use target to extended ep; see abstract.jsy for notes
       const registered = Promise
@@ -69,7 +72,7 @@ export function endpoint_plugin(plugin_options) ::
         ep_tgt.ready = ready.then @ fn_tgt
 
         const res = registered.then @ fn_tgt
-        Object.assign @ res, ep_tgt
+        o_assign @ res, ep_tgt
         res.toJSON = ep.toJSON
         return res
 
