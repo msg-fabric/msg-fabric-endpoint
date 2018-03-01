@@ -37,13 +37,17 @@ export function as_client_target(on_client) ::
 
 
 ep_proto._add_extension_ @ (pi_endpoint, hub) => ::
+  const op_prefix = 'rpc_'
   const invoke_proxy = @{}
     has: () => true
     get: (invoke, prop) =>
-      kw => invoke @ prop, kw
+      prop.startsWith(invoke._pfx_)
+        ? kw => invoke @ prop, kw
+        : invoke[prop]
 
   o_assign @ pi_endpoint.ep_mixin_api, @{}
-    api_to(tgt, ctx) ::
+    api_to(tgt, ctx, pfx) ::
+      invoke._pfx_ = pfx || op_prefix
       tgt = this.to(tgt)
       return new Proxy @ invoke, invoke_proxy
 

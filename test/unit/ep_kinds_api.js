@@ -206,22 +206,12 @@ describe @ 'ep_kinds.api', @=> ::
       await tgt.ready
 
       const c = await hub.endpoint.clientOf @ tgt, '$ctx$', async invoke => ::
-        const a1 = await invoke.one()
-        log @ 'error', a1.op, a1.error
-
-        expect @ a1.err_from
-        .to.be.a @ 'function'
-        .to.have.a.property @ sym_sampi
-
-        expect @ a1.err_from[sym_sampi]
-        .to.be.a @ 'string'
-        .to.equal @ tgt[sym_sampi]
-
+        expect @=> ::
+          invoke.one()
+        .to.throw()
 
       expect(api_log.calls).to.deep.equal @#
-
       expect(log.calls).to.deep.equal @#
-        @[] 'error', 'one', @{} code: 404, message: 'Unknown operation'
 
 
 

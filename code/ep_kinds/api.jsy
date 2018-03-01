@@ -6,42 +6,64 @@ ep_proto._add_kind_ @:
   api(api) :: return this.api_parallel(api)
   api_parallel(api) ::
     return this.endpoint @ async function (ep, hub) ::
-      const rpc = await api_bind_rpc(api, ep, hub)
-      return @{} rpc,
-        async on_msg({msg, anon}) ::
-          await rpc.invoke @ anon,
-            null == msg ? null : msg.op,
-            api_fn => api_fn(msg.kw, msg.ctx)
+      const rpc = await api_endpoint_rpc(api, ep, hub)
+      return @{} rpc, on_rpc_msg, on_msg: on_rpc_msg
+
+      function on_rpc_msg({msg, anon}) ::
+        return rpc.invoke @ anon,
+          null == msg ? null : msg.op,
+          api_fn => api_fn(msg.kw, msg.ctx)
 
   api_inorder(api) ::
     return this.endpoint @ async function (ep, hub) ::
-      const rpc = await api_bind_rpc(api, ep, hub)
-      return @{} rpc,
-        async on_msg({msg, anon}) ::
-          await rpc.invoke_gated @ anon,
-            null == msg ? null : msg.op,
-            api_fn => api_fn(msg.kw, msg.ctx)
+      const rpc = await api_endpoint_rpc(api, ep, hub)
+      return @{} rpc, on_rpc_msg, on_msg: on_rpc_msg
+
+      function on_rpc_msg({msg, anon}) ::
+        return rpc.invoke_gated @ anon,
+          null == msg ? null : msg.op,
+          api_fn => api_fn(msg.kw, msg.ctx)
 
 
-async function api_bind_rpc(api, ep, hub) ::
+  ep_api(api) :: return this.ep_api_parallel(api)
+  ep_api_parallel(api) ::
+    return this.endpoint @ async function (ep, hub) ::
+      const rpc = await api_endpoint_rpc(api, ep, hub)
+      return @{} rpc, on_rpc_msg, on_msg: on_rpc_msg
+
+      function on_rpc_msg({msg, anon}) ::
+        return rpc.invoke @ anon,
+          null == msg ? null : msg.op,
+          api_fn => api_fn(ep, msg.kw, msg.ctx)
+
+  ep_api_inorder(api) ::
+    return this.endpoint @ async function (ep, hub) ::
+      const rpc = await api_endpoint_rpc(api, ep, hub)
+      return @{} rpc, on_rpc_msg, on_msg: on_rpc_msg
+
+      function on_rpc_msg({msg, anon}) ::
+        return rpc.invoke_gated @ anon,
+          null == msg ? null : msg.op,
+          api_fn => api_fn(ep, msg.kw, msg.ctx)
+
+
+async function api_endpoint_rpc(api, ep, hub) ::
   if 'function' === typeof api ::
     api = await api(ep, hub)
+  return api_bind_rpc(api, ep, hub)
 
+function api_bind_rpc(api, ep, hub) ::
   const pfx = api.op_prefix || 'rpc_'
   const validate_op = api.op_validate
     ? op => op.startsWith(pfx) && api.op_validate(op)
     : op => op.startsWith(pfx)
 
   const lookup_op = api.op_lookup
-    ? @ op => ! validate_op(op) ? null
-        : api.op_lookup(op, ep, hub)
+    ? @ op => validate_op(op) ? api.op_lookup(op, ep, hub) : null
     : 'function' === typeof api
-    ? @ op => ! validate_op(op) ? null
-        : api(op, ep, hub)
+    ? @ op => validate_op(op) ? api(op, ep, hub) : null
     : @ op => ::
-        if ! validate_op(op) ::
-          return null
-        const fn = api[op]
+        const fn = validate_op(op) ? api[op] : null
         return fn ? fn.bind(api) : fn
 
   return o_create @ rpc_api, @{}
