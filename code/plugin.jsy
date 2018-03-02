@@ -6,13 +6,12 @@ import sink from './sink.jsy'
 const default_plugin_options = @{}
   plugin_name: 'endpoint'
 
-  on_msg(pkt) ::
-    console.warn @ 'ENDPOINT MSG:', pkt
+  //on_msg({msg, pkt, reply, anon}) ::
+  //  console.warn @ 'ENDPOINT MSG:', pkt
   on_warn(ep, msg, extra) ::
     console.warn @ 'ENDPOINT WARN:', msg
   on_error(ep, err, extra) ::
     console.error @ 'ENDPOINT ERROR:', err
-    // return false to prevent auto-shutdown
   on_shutdown(ep, err, extra) ::
     console.error @ `ENDPOINT SHUTDOWN: ${err.message}`
 
@@ -65,7 +64,8 @@ export function endpoint_plugin(plugin_options) ::
             : target
         .then @ _after_init
 
-      const ready = registered.then @ _after_registered
+      const ready = registered
+        .then @ _after_registered
 
       ::
         const ep_tgt = ep.toJSON(), fn_tgt = () => ep_tgt
@@ -86,8 +86,12 @@ export function endpoint_plugin(plugin_options) ::
 
         return tgt
 
-      function _after_registered(tgt) ::
-        return tgt.on_ready ? tgt.on_ready(ep, hub) : tgt
+      async function _after_registered(tgt) ::
+        try ::
+          return await @
+            tgt.on_ready ? tgt.on_ready(ep, hub) : tgt
+        catch err ::
+          tgt.on_error @ ep, err
 
 async function _on_init(target, ep, hub) ::
   await target.on_init(ep, hub)

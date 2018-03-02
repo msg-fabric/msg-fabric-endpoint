@@ -12,8 +12,8 @@ describe @ 'Endpoint flow', @=> ::
       const tgt = hub.endpoint @=> ::
         log @ 'init'
         return @{}
-          on_ready() ::
-            log @ 'ready'
+          on_msg() :: log @ 'msg'
+          on_ready() :: log @ 'ready'
 
       log @ 'ep_created'
 
@@ -35,6 +35,8 @@ describe @ 'Endpoint flow', @=> ::
       const tgt = hub.endpoint @=> ::
         log @ 'init'
         return @{}
+          on_msg() ::
+            log @ 'msg'
           async on_ready() ::
             log @ 'ready 0'
             await 0
@@ -63,6 +65,8 @@ describe @ 'Endpoint flow', @=> ::
       const tgt = hub.endpoint @:
         on_init() ::
           log @ 'on_init'
+        on_msg() ::
+          log @ 'msg'
         on_ready() ::
           log @ 'ready'
 
@@ -86,6 +90,8 @@ describe @ 'Endpoint flow', @=> ::
       const tgt = hub.endpoint @:
         on_init() ::
           log @ 'on_init'
+        on_msg() ::
+          log @ 'msg'
         async on_ready() ::
           log @ 'ready 0'
           await 0
@@ -117,6 +123,8 @@ describe @ 'Endpoint flow', @=> ::
         log @ 'init 1'
 
         return @{}
+          on_msg() ::
+            log @ 'msg'
           on_ready() ::
             log @ 'ready'
 
@@ -143,6 +151,8 @@ describe @ 'Endpoint flow', @=> ::
         await 0
         log @ 'init 1'
         return @{}
+          on_msg() ::
+            log @ 'msg'
           async on_ready() ::
             log @ 'ready 0'
             await 0
@@ -173,6 +183,7 @@ describe @ 'Endpoint flow', @=> ::
           log @ 'on_init 0'
           await 0
           log @ 'on_init 1'
+        on_msg() :: log @ 'msg'
         on_ready() :: log @ 'ready'
 
       log @ 'ep_created'
@@ -198,6 +209,8 @@ describe @ 'Endpoint flow', @=> ::
           log @ 'on_init 0'
           await 0
           log @ 'on_init 1'
+        on_msg() ::
+          log @ 'msg'
         async on_ready() ::
           log @ 'ready 0'
           await 0
@@ -227,6 +240,8 @@ describe @ 'Endpoint flow', @=> ::
       expect(hub_i).to.equal(hub)
 
       return @{}
+        on_msg() ::
+          log @ 'msg'
         on_ready(ep_r, hub_r) ::
           log @ 'ready', {ep: ep_r.toJSON()}
           expect(ep_r).to.equal(ep_i)
@@ -256,6 +271,9 @@ describe @ 'Endpoint flow', @=> ::
         expect(hub_i).to.equal(hub)
         this.hub_i = hub_i
         this.ep_i = ep_i
+
+      on_msg() ::
+        log @ 'msg'
 
       on_ready(ep_r, hub_r) ::
         log @ 'ready', {ep: ep_r.toJSON()}

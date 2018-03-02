@@ -7,6 +7,9 @@ export function sink(_recv_, ep, tgt, fallback) ::
     : 'function' === typeof tgt ? tgt
     : fallback.on_msg
 
+  if 'function' !== typeof on_msg ::
+    throw new TypeError @ 'Expected target or target.on_msg function'
+
   let alive = true
 
   const isAlive = () => alive

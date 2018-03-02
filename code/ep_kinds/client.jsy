@@ -26,6 +26,9 @@ export function as_client_target(on_client) ::
   let client
   const done = new Promise @ (resolve, reject) => ::
     client = @{}
+      on_msg(m) ::
+        console.warn @ 'CLIENT ENDPOINT MSG:', m
+        //if pkt.is_pkt_json :: console.dir @ pkt.json(), @{} colors: true
       on_ready(ep, hub) ::
         done.then(ep.shutdown, ep.shutdown)
         resolve @ on_client(ep, hub)
