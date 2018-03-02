@@ -74,14 +74,14 @@ function api_bind_rpc(api, ep, hub) ::
 const rpc_api = @{}
   async invoke(reply, op, cb) ::
     const api_fn = await this.resolve_op @ reply, op
-    if undefined === api_fn :: return
+    if null == api_fn :: return
 
     const res = this.answer @ reply, api_fn, cb
     return await res
 
   async invoke_gated(reply, op, cb) ::
     const api_fn = await this.resolve_op @ reply, op
-    if undefined === api_fn :: return
+    if null == api_fn :: return
 
     const res = Promise.resolve(this.gate)
       .then @ () => this.answer @ reply, api_fn, cb

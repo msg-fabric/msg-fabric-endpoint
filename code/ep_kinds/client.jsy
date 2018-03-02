@@ -28,7 +28,7 @@ export function as_client_target(on_client) ::
     client = @{}
       on_msg(m) ::
         console.warn @ 'CLIENT ENDPOINT MSG:', m
-        //if pkt.is_pkt_json :: console.dir @ pkt.json(), @{} colors: true
+        //if m.pkt.is_pkt_json :: console.dir @ m.pkt.json(), @{} colors: true
       on_ready(ep, hub) ::
         done.then(ep.shutdown, ep.shutdown)
         resolve @ on_client(ep, hub)
@@ -44,9 +44,15 @@ ep_proto._add_extension_ @ (pi_endpoint, hub) => ::
   const invoke_proxy = @{}
     has: () => true
     get: (invoke, prop) =>
-      prop.startsWith(invoke._pfx_)
+      'string' === typeof prop && prop.startsWith(invoke._pfx_)
         ? kw => invoke @ prop, kw
         : invoke[prop]
+
+  class APIError extends Error ::
+    is_api_error() :: return true
+    constructor(ns) ::
+      super(ns.error.message)
+      o_assign(this, ns)
 
   o_assign @ pi_endpoint.ep_mixin_api, @{}
     api_to(tgt, ctx, pfx) ::
@@ -54,6 +60,9 @@ ep_proto._add_extension_ @ (pi_endpoint, hub) => ::
       tgt = this.to(tgt)
       return new Proxy @ invoke, invoke_proxy
 
-      function invoke(op, kw) ::
-        return tgt.query @: op, kw, ctx
+      async function invoke(op, kw) ::
+        const resp = await tgt.query @: op, kw, ctx
+        if 'error' in resp ::
+          throw new APIError(resp)
+        return resp.answer
 

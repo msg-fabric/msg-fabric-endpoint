@@ -56,6 +56,34 @@ describe @ 'ep_kinds.api', @=> ::
         'init 0'
         'init 1'
 
+    it @ 'invoke proxy', @=>> ::
+      const tgt = await hub.endpoint.api @:
+        rpc_yes() ::
+
+      await hub.endpoint.clientOf @ tgt, '$ctx$', async invoke => ::
+        expect @ invoke['not_an_rpc_fn']
+        .to.equal(undefined)
+
+        expect @ invoke['rpc_fn1']
+        .to.be.a('function')
+
+        expect @ invoke.rpc_fn2
+        .to.be.a('function')
+
+        expect @ invoke[Symbol('test')]
+        .to.equal(undefined)
+
+        await @
+          expect(invoke.rpc_yes())
+          .to.be.a('promise')
+          .to.be.fulfilled
+
+        await @
+          expect(invoke.rpc_no())
+          .to.be.a('promise')
+          .to.be.rejected
+
+
     it @ 'call one', @=>> ::
       const tgt = hub.endpoint.api @ test_api()
       await tgt.ready
@@ -80,7 +108,7 @@ describe @ 'ep_kinds.api', @=> ::
       expect(log.calls).to.deep.equal @#
         'top of client'
         @[] 'after a1 invoke', true
-        @[] 'after await a1', @{} answer: 'ans rpc_one'
+        @[] 'after await a1', 'ans rpc_one'
         'end of client'
 
       expect(api_log.calls).to.deep.equal @#
@@ -119,7 +147,7 @@ describe @ 'ep_kinds.api', @=> ::
         'init'
         'top of client'
         @[] 'after a1 invoke', true
-        @[] 'after await a1', @{} answer: 'ans rpc_one'
+        @[] 'after await a1', 'ans rpc_one'
         'end of client'
 
       expect(api_log.calls).to.deep.equal @#
@@ -163,7 +191,7 @@ describe @ 'ep_kinds.api', @=> ::
         'init 1'
         'top of client'
         @[] 'after a1 invoke', true
-        @[] 'after await a1', @{} answer: 'ans rpc_one'
+        @[] 'after await a1', 'ans rpc_one'
         'end of client'
 
       expect(api_log.calls).to.deep.equal @#
@@ -180,22 +208,52 @@ describe @ 'ep_kinds.api', @=> ::
       await tgt.ready
 
       const c = await hub.endpoint.clientOf @ tgt, '$ctx$', async invoke => ::
-        const a1 = await invoke @ 'one'
-        log @ 'error', a1.op, a1.error
+        const a1 = invoke @ 'one'
+        expect(a1).to.be.a('promise')
+        await expect(a1).to.be.rejected.then @ err => ::
+          log @ 'error', err.op, err.error
 
-        expect @ a1.err_from
-        .to.be.a @ 'function'
-        .to.have.a.property @ sym_sampi
+          expect @ err.err_from
+          .to.be.a @ 'function'
+          .to.have.a.property @ sym_sampi
 
-        expect @ a1.err_from[sym_sampi]
-        .to.be.a @ 'string'
-        .to.equal @ tgt[sym_sampi]
+          expect @ err.err_from[sym_sampi]
+          .to.be.a @ 'string'
+          .to.equal @ tgt[sym_sampi]
 
 
       expect(api_log.calls).to.deep.equal @#
 
       expect(log.calls).to.deep.equal @#
         @[] 'error', 'one', @{} code: 404, message: 'Unknown operation'
+
+
+
+    it @ 'call non-existant method', @=>> ::
+      const tgt = hub.endpoint.api @ test_api()
+      expect(tgt).to.have.a.property @ sym_sampi
+
+      await tgt.ready
+
+      const c = await hub.endpoint.clientOf @ tgt, '$ctx$', async invoke => ::
+        const a1 = invoke @ 'rpc_this-should-not-exist'
+        expect(a1).to.be.a('promise')
+        await expect(a1).to.be.rejected.then @ err => ::
+          log @ 'error', err.op, err.error
+
+          expect @ err.err_from
+          .to.be.a @ 'function'
+          .to.have.a.property @ sym_sampi
+
+          expect @ err.err_from[sym_sampi]
+          .to.be.a @ 'string'
+          .to.equal @ tgt[sym_sampi]
+
+
+      expect(api_log.calls).to.deep.equal @#
+
+      expect(log.calls).to.deep.equal @#
+        @[] 'error', 'rpc_this-should-not-exist', @{} code: 404, message: 'Unknown operation'
 
 
 
@@ -212,32 +270,6 @@ describe @ 'ep_kinds.api', @=> ::
 
       expect(api_log.calls).to.deep.equal @#
       expect(log.calls).to.deep.equal @#
-
-
-
-    it @ 'call non-existant method', @=>> ::
-      const tgt = hub.endpoint.api @ test_api()
-      expect(tgt).to.have.a.property @ sym_sampi
-
-      await tgt.ready
-
-      const c = await hub.endpoint.clientOf @ tgt, '$ctx$', async invoke => ::
-        const a1 = await invoke @ 'rpc_this-should-not-exist'
-        log @ 'error', a1.op, a1.error
-
-        expect @ a1.err_from
-        .to.be.a @ 'function'
-        .to.have.a.property @ sym_sampi
-
-        expect @ a1.err_from[sym_sampi]
-        .to.be.a @ 'string'
-        .to.equal @ tgt[sym_sampi]
-
-
-      expect(api_log.calls).to.deep.equal @#
-
-      expect(log.calls).to.deep.equal @#
-        @[] 'error', 'rpc_this-should-not-exist', @{} code: 404, message: 'Unknown operation'
 
 
 
@@ -278,9 +310,9 @@ describe @ 'ep_kinds.api', @=> ::
           @{} fn: 'rpc_two', kw: { order: 2 }, ctx: '$ctx$'
           @{} fn: 'rpc_three', kw: {order: 3}, ctx: '$ctx$'
           'two await 0'
-          @[] 'awaited one', @{} answer: 'ans rpc_one'
-          @[] 'awaited two', @{} answer: 'ans rpc_two'
-          @[] 'awaited three', @{} answer: 'ans rpc_three'
+          @[] 'awaited one', 'ans rpc_one'
+          @[] 'awaited two', 'ans rpc_two'
+          @[] 'awaited three', 'ans rpc_three'
 
 
       it @ 'call serial one two three', @=>> ::
@@ -306,16 +338,16 @@ describe @ 'ep_kinds.api', @=> ::
           'top'
           'invoked one'
           @{} fn: 'rpc_one', kw: { order: 1 }, ctx: '$ctx$'
-          @[] 'awaited one', @{} answer: 'ans rpc_one'
+          @[] 'awaited one', 'ans rpc_one'
 
           'invoked two'
           @{} fn: 'rpc_two', kw: { order: 2 }, ctx: '$ctx$'
           'two await 0'
-          @[] 'awaited two', @{} answer: 'ans rpc_two'
+          @[] 'awaited two', 'ans rpc_two'
 
           'invoked three'
           @{} fn: 'rpc_three', kw: {order: 3}, ctx: '$ctx$'
-          @[] 'awaited three', @{} answer: 'ans rpc_three'
+          @[] 'awaited three', 'ans rpc_three'
 
 
 
@@ -330,34 +362,34 @@ describe @ 'ep_kinds.api', @=> ::
       await tgt.ready
 
       const c = await hub.endpoint.clientOf @ tgt, '$ctx$', async invoke => ::
-        api_log @ 'top'
+        log @ 'top'
         const p_one = invoke @ 'rpc_one', @{} order: 1
-        api_log @ 'invoked one'
+        log @ 'invoked one'
         const p_two = invoke @ 'rpc_two', @{} order: 2
-        api_log @ 'invoked two'
+        log @ 'invoked two'
         const p_three = invoke @ 'rpc_three', @{} order: 3
-        api_log @ 'invoked three'
+        log @ 'invoked three'
 
-        api_log @ 'awaited one', await p_one
-        api_log @ 'awaited two', await p_two
-        api_log @ 'awaited three', await p_three
+        log @ 'awaited one', await p_one
+        log @ 'awaited two', await p_two
+        log @ 'awaited three', await p_three
 
 
-      expect(api_log.calls).to.deep.equal @#
+      expect(log.calls).to.deep.equal @#
         'top'
         'invoked one'
         'invoked two'
         'invoked three'
 
-        @{} fn: 'rpc_one', kw: { order: 1 }, ctx: '$ctx$'
-        @[] 'awaited one', @{} answer: 'ans rpc_one'
+        @[] 'awaited one', 'ans rpc_one'
+        @[] 'awaited two', 'ans rpc_two'
+        @[] 'awaited three', 'ans rpc_three'
 
+      expect(api_log.calls).to.deep.equal @#
+        @{} fn: 'rpc_one', kw: { order: 1 }, ctx: '$ctx$'
         @{} fn: 'rpc_two', kw: { order: 2 }, ctx: '$ctx$'
         'two await 0'
-        @[] 'awaited two', @{} answer: 'ans rpc_two'
-
         @{} fn: 'rpc_three', kw: {order: 3}, ctx: '$ctx$'
-        @[] 'awaited three', @{} answer: 'ans rpc_three'
 
 
     it @ 'call serial one two three', @=>> ::
@@ -383,16 +415,16 @@ describe @ 'ep_kinds.api', @=> ::
         'top'
         'invoked one'
         @{} fn: 'rpc_one', kw: { order: 1 }, ctx: '$ctx$'
-        @[] 'awaited one', @{} answer: 'ans rpc_one'
+        @[] 'awaited one', 'ans rpc_one'
 
         'invoked two'
         @{} fn: 'rpc_two', kw: { order: 2 }, ctx: '$ctx$'
         'two await 0'
-        @[] 'awaited two', @{} answer: 'ans rpc_two'
+        @[] 'awaited two', 'ans rpc_two'
 
         'invoked three'
         @{} fn: 'rpc_three', kw: {order: 3}, ctx: '$ctx$'
-        @[] 'awaited three', @{} answer: 'ans rpc_three'
+        @[] 'awaited three', 'ans rpc_three'
 
 
   describe @ 'invoke proxy api', @=> ::
@@ -423,9 +455,9 @@ describe @ 'ep_kinds.api', @=> ::
         @{} fn: 'rpc_two', kw: { order: 2 }, ctx: '$ctx$'
         @{} fn: 'rpc_three', kw: {order: 3}, ctx: '$ctx$'
         'two await 0'
-        @[] 'awaited one', @{} answer: 'ans rpc_one'
-        @[] 'awaited two', @{} answer: 'ans rpc_two'
-        @[] 'awaited three', @{} answer: 'ans rpc_three'
+        @[] 'awaited one', 'ans rpc_one'
+        @[] 'awaited two', 'ans rpc_two'
+        @[] 'awaited three', 'ans rpc_three'
 
 
     it @ 'call serial one two three', @=>> ::
@@ -451,16 +483,16 @@ describe @ 'ep_kinds.api', @=> ::
         'top'
         'invoked one'
         @{} fn: 'rpc_one', kw: { order: 1 }, ctx: '$ctx$'
-        @[] 'awaited one', @{} answer: 'ans rpc_one'
+        @[] 'awaited one', 'ans rpc_one'
 
         'invoked two'
         @{} fn: 'rpc_two', kw: { order: 2 }, ctx: '$ctx$'
         'two await 0'
-        @[] 'awaited two', @{} answer: 'ans rpc_two'
+        @[] 'awaited two', 'ans rpc_two'
 
         'invoked three'
         @{} fn: 'rpc_three', kw: {order: 3}, ctx: '$ctx$'
-        @[] 'awaited three', @{} answer: 'ans rpc_three'
+        @[] 'awaited three', 'ans rpc_three'
 
 
 
