@@ -1,4 +1,4 @@
-const deliver = @{} 'direct': true, 'datagram': true
+const deliver = @{} 'direct': true, 'datagram': true, 'split_direct': true, 'split_datagram': true
 
 export default sink
 export function sink(_recv_, ep, tgt, fallback) ::

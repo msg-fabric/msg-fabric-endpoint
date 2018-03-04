@@ -26,7 +26,7 @@ export function endpoint_plugin(plugin_options) ::
     on_shutdown: plugin_options.on_shutdown
 
   return function(hub) ::
-    const random = hub.data_utils.random
+    const random_base64 = hub.data_utils.random_base64
 
     const pi_endpoint = endpoint.bind(null)
     o_assign @ pi_endpoint, @{}
@@ -44,7 +44,7 @@ export function endpoint_plugin(plugin_options) ::
       return self.create @ self.newTargetId(), tgt
 
     function newTargetId() ::
-      return random(6, true)
+      return random_base64(6)
 
     function create(id_target, target) ::
       const self = this || pi_endpoint
