@@ -1,7 +1,7 @@
 const deliver = @{} 'direct': true, 'datagram': true, 'split_direct': true, 'split_datagram': true
 
 export default sink
-export function sink(_recv_, ep, tgt, fallback) ::
+export function sink(_recv_, ep, hub, tgt, fallback) ::
   const on_msg = tgt.on_msg
     ? tgt.on_msg.bind(tgt)
     : 'function' === typeof tgt ? tgt
@@ -26,7 +26,7 @@ export function sink(_recv_, ep, tgt, fallback) ::
     get msg() :: return ep.msg_reviver(this.pkt)
     get reply() :: return this.pkt.op.reply()
     get anon() :: return this.pkt.op.anon()
-
+    ep, hub
 
   return dispatch_pkt
 

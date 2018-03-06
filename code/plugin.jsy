@@ -82,16 +82,17 @@ export function endpoint_plugin(plugin_options) ::
           throw new TypeError @ `Expected endpoint init to return a closure or interface`
 
         tgt_router.registerTarget @ id_target,
-          sink @ _recv_, ep, tgt, fallback
+          sink @ _recv_, ep, hub, tgt, fallback
 
         return tgt
 
       async function _after_registered(tgt) ::
         try ::
-          return await @
-            tgt.on_ready ? tgt.on_ready(ep, hub) : tgt
+          if tgt.on_ready ::
+            await tgt.on_ready(ep, hub)
         catch err ::
-          tgt.on_error @ ep, err
+          (tgt.on_error ? tgt : fallback)
+            .on_error @ ep, err
 
 async function _on_init(target, ep, hub) ::
   await target.on_init(ep, hub)

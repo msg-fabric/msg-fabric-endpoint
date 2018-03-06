@@ -236,17 +236,20 @@ describe @ 'Endpoint flow', @=> ::
 
   it @ 'normal arguments', @=>> ::
     const tgt = hub.endpoint @ (ep_i, hub_i) => ::
-      log @ 'init', {ep: ep_i.toJSON()}
       expect(hub_i).to.equal(hub)
+      log @ 'init', {ep: ep_i.toJSON()}
 
       return @{}
-        on_msg() ::
-          log @ 'msg'
-        on_ready(ep_r, hub_r) ::
-          log @ 'ready', {ep: ep_r.toJSON()}
+        on_msg({ep: ep_r, hub: hub_r}) ::
           expect(ep_r).to.equal(ep_i)
           expect(hub_r).to.equal(hub)
           expect(hub_r).to.equal(hub_i)
+          log @ 'msg'
+        on_ready(ep_r, hub_r) ::
+          expect(ep_r).to.equal(ep_i)
+          expect(hub_r).to.equal(hub)
+          expect(hub_r).to.equal(hub_i)
+          log @ 'ready', {ep: ep_r.toJSON()}
 
     log @ 'ep_created', tgt.toJSON()
 
@@ -267,8 +270,8 @@ describe @ 'Endpoint flow', @=> ::
   it @ 'object arguments', @=>> ::
     const tgt = hub.endpoint @:
       on_init(ep_i, hub_i) ::
-        log @ 'init', {ep: ep_i.toJSON()}
         expect(hub_i).to.equal(hub)
+        log @ 'init', {ep: ep_i.toJSON()}
         this.hub_i = hub_i
         this.ep_i = ep_i
 
@@ -276,10 +279,10 @@ describe @ 'Endpoint flow', @=> ::
         log @ 'msg'
 
       on_ready(ep_r, hub_r) ::
-        log @ 'ready', {ep: ep_r.toJSON()}
         expect(ep_r).to.equal(this.ep_i)
         expect(hub_r).to.equal(hub)
         expect(hub_r).to.equal(this.hub_i)
+        log @ 'ready', {ep: ep_r.toJSON()}
 
     log @ 'ep_created', tgt.toJSON()
 
@@ -295,5 +298,43 @@ describe @ 'Endpoint flow', @=> ::
       @[] 'init', {ep: tgt.toJSON()}
       @[] 'ep_created', tgt.toJSON()
       @[] 'ready', {ep: tgt.toJSON()}
+
+
+  it @ 'function object arguments', @=>> ::
+    const tgt = hub.endpoint @ async (ep_i, hub_i) => ::
+      expect(hub_i).to.equal(hub)
+      log @ 'init 0'
+      await 0
+      log @ 'init 1'
+      on_msg.on_ready = on_ready
+      return on_msg
+
+      async function on_msg() ::
+        log @ 'msg 0'
+        await 0
+        log @ 'msg 1'
+
+      async function on_ready(ep_r, hub_r) ::
+        expect(ep_r).to.equal(ep_i)
+        expect(hub_r).to.equal(hub)
+        expect(hub_r).to.equal(hub_i)
+        log @ 'ready 0'
+        await 0
+        log @ 'ready 1'
+
+    log @ 'ep_created'
+
+    expect(log.calls).to.deep.equal @#
+      'init 0'
+      'ep_created'
+
+    await tgt.ready
+
+    expect(log.calls).to.deep.equal @#
+      'init 0'
+      'ep_created'
+      'init 1'
+      'ready 0'
+      'ready 1'
 
 
