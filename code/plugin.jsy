@@ -1,5 +1,5 @@
 import { o_create, o_assign } from './_utils'
-import ep_proto from './ep_kinds/index.jsy'
+import ep_proto_base from './ep_kinds/index.jsy'
 import ep_mixin_api from './endpoint.jsy'
 import sink from './sink.jsy'
 
@@ -28,71 +28,81 @@ export function endpoint_plugin(plugin_options) ::
   return function(hub) ::
     const random_base64 = hub.data_utils.random_base64
 
-    const pi_endpoint = endpoint.bind(null)
-    o_assign @ pi_endpoint, @{}
-      endpoint, create, newTargetId
+    const ep_proto_with_hub = @{} __proto__: ep_proto_base,
+      newTargetId() :: return random_base64(6)
       tgt_router: hub.local
       ep_msgs: o_create(hub.msgs)
       ep_mixin_api: o_assign({}, ep_mixin_api)
+      ep_sink: sink
+      createEndpointPlugin
 
-    Object.setPrototypeOf @ pi_endpoint, ep_proto
-    pi_endpoint._apply_extensions_(hub)
-    return hub[plugin_options.plugin_name] = pi_endpoint
-
-    function endpoint(tgt) ::
-      const self = this || pi_endpoint
-      return self.create @ self.newTargetId(), tgt
-
-    function newTargetId() ::
-      return random_base64(6)
-
-    function create(id_target, target) ::
-      const self = this || pi_endpoint
-      const tgt_router = self.tgt_router
-
-      const ep0 = self.ep_msgs.as @: id_target, id_route: tgt_router.id_route
-      // capture the _recv_ method
-      const _recv_ = ep0._recv_; delete ep0._recv_
-      const ep = o_assign @ ep0, self.ep_mixin_api
-
-      // use target to extended ep; see abstract.jsy for notes
-      const registered = Promise
-        .resolve @
-          'function' === typeof target ? target(ep, hub)
-          : 'function' === typeof target.on_init
-            ? _on_init(target, ep, hub)
-            : target
-        .then @ _after_init
-
-      const ready = registered
-        .then @ _after_registered
-
-      ::
-        const ep_tgt = ep.toJSON(), fn_tgt = () => ep_tgt
-        ep_tgt.ready = ready.then @ fn_tgt
-
-        const res = registered.then @ fn_tgt
-        o_assign @ res, ep_tgt
-        res.toJSON = ep.toJSON
-        return res
+    return hub[plugin_options.plugin_name] = createEndpointPlugin()
 
 
-      function _after_init(tgt) ::
-        if null == tgt ::
-          throw new TypeError @ `Expected endpoint init to return a closure or interface`
+    function createEndpointPlugin(extensions) ::
+      const ep_proto = null == extensions ? ep_proto_with_hub
+        : 'function' === typeof extensions
+          ? extensions(hub, ep_proto_with_hub)
+          : o_assign({ __proto__: ep_proto_with_hub }, extensions)
 
-        tgt_router.registerTarget @ id_target,
-          sink @ _recv_, ep, hub, tgt, fallback
+      const pi_endpoint = endpoint.bind(null)
+      o_assign @ pi_endpoint, @{} endpoint, create
 
-        return tgt
+      Object.setPrototypeOf @ pi_endpoint, ep_proto
+      pi_endpoint._apply_extensions_(hub)
+      return pi_endpoint
 
-      async function _after_registered(tgt) ::
-        try ::
-          if tgt.on_ready ::
-            await tgt.on_ready(ep, hub)
-        catch err ::
-          (tgt.on_error ? tgt : fallback)
-            .on_error @ ep, err
+      function endpoint(tgt) ::
+        const self = this || pi_endpoint
+        return self.create @ self.newTargetId(), tgt
+
+      function create(id_target, target) ::
+        const self = this || pi_endpoint
+        const tgt_router = self.tgt_router
+
+        const ep0 = self.ep_msgs.as @: id_target, id_route: tgt_router.id_route
+        // capture the _recv_ method
+        const _recv_ = ep0._recv_; delete ep0._recv_
+        const ep = o_assign @ ep0, self.ep_mixin_api
+
+        // use target to extended ep; see abstract.jsy for notes
+        const registered = Promise
+          .resolve @
+            'function' === typeof target ? target(ep, hub)
+            : 'function' === typeof target.on_init
+              ? _on_init(target, ep, hub)
+              : target
+          .then @ _after_init
+
+        const ready = registered
+          .then @ _after_registered
+
+        ::
+          const ep_tgt = ep.toJSON(), fn_tgt = () => ep_tgt
+          ep_tgt.ready = ready.then @ fn_tgt
+
+          const res = registered.then @ fn_tgt
+          o_assign @ res, ep_tgt
+          res.toJSON = ep.toJSON
+          return res
+
+
+        function _after_init(tgt) ::
+          if null == tgt ::
+            throw new TypeError @ `Expected endpoint init to return a closure or interface`
+
+          tgt_router.registerTarget @ id_target,
+            self.ep_sink @ _recv_, ep, hub, tgt, fallback
+
+          return tgt
+
+        async function _after_registered(tgt) ::
+          try ::
+            if tgt.on_ready ::
+              await tgt.on_ready(ep, hub)
+          catch err ::
+            (tgt.on_error ? tgt : fallback)
+              .on_error @ ep, err
 
 async function _on_init(target, ep, hub) ::
   await target.on_init(ep, hub)
