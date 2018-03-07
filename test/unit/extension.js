@@ -6,7 +6,7 @@ describe @ 'endpoint plugin extensions', @=> ::
     log = newLog()
 
 
-  it.only @ 'xor transform extension', @=>> ::
+  it @ 'xor transform extension', @=>> ::
     const hub = Hub.create('$unit$')
 
     let count_token = 1000, count_tgt_id = 9000
@@ -32,8 +32,8 @@ describe @ 'endpoint plugin extensions', @=> ::
           const inner_pkt = fromObjBinaryPacket(pkt_obj)
           log @ `pre _send_pkt_ ${inner_pkt.pkt_kind}`, inner_pkt._hdr_.slice()
 
-          const body = Buffer
-            .from @ packBinaryPacket(inner_pkt)
+          const body = hub.data_utils
+            .encode_utf8 @ packBinaryPacket(inner_pkt)
             .map @ b => b ^ -1 // -- xor "encrypt" transform
 
           const xor_pkt = fromObjBinaryPacket @:
