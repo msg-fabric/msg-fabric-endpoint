@@ -6,7 +6,7 @@ import sink from './sink.jsy'
 const default_plugin_options = @{}
   plugin_name: 'endpoint'
 
-  //on_msg({msg, pkt, reply, anon}) ::
+  //on_msg({msg, pkt, reply, anon, ep, hub}) ::
   //  console.warn @ 'ENDPOINT MSG:', pkt
   on_warn(ep, msg, extra) ::
     console.warn @ 'ENDPOINT WARN:', msg
@@ -22,6 +22,7 @@ export function endpoint_plugin(plugin_options) ::
 
   const fallback = @{} __proto__: null
     on_msg: plugin_options.on_msg
+    on_warn: plugin_options.on_warn
     on_error: plugin_options.on_error
     on_shutdown: plugin_options.on_shutdown
 
@@ -31,6 +32,7 @@ export function endpoint_plugin(plugin_options) ::
     const ep_proto_with_hub = @{} __proto__: ep_proto_base,
       newTargetId() :: return random_base64(6)
       tgt_router: hub.local
+      ep_create(ep_addr) :: return this.ep_msgs.as(ep_addr)
       ep_msgs: o_create(hub.msgs)
       ep_mixin_api: o_assign({}, ep_mixin_api)
       ep_sink: sink
@@ -60,7 +62,10 @@ export function endpoint_plugin(plugin_options) ::
         const self = this || pi_endpoint
         const tgt_router = self.tgt_router
 
-        const ep0 = self.ep_msgs.as @: id_target, id_route: tgt_router.id_route
+        const ep0 = self.ep_create @
+          @{} id_target, id_route: tgt_router.id_route
+          target, hub
+
         // capture the _recv_ method
         const _recv_ = ep0._recv_; delete ep0._recv_
         const ep = o_assign @ ep0, self.ep_mixin_api
@@ -87,12 +92,18 @@ export function endpoint_plugin(plugin_options) ::
           return res
 
 
-        function _after_init(tgt) ::
+        async function _after_init(tgt) ::
           if null == tgt ::
             throw new TypeError @ `Expected endpoint init to return a closure or interface`
 
+          if undefined !== self.ep_post_init ::
+            await self.ep_post_init(tgt, ep, hub)
+
           tgt_router.registerTarget @ id_target,
             self.ep_sink @ _recv_, ep, hub, tgt, fallback
+
+          if undefined !== self.ep_pre_ready ::
+            await self.ep_pre_ready(tgt, ep, hub)
 
           return tgt
 

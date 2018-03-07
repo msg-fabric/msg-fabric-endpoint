@@ -37,8 +37,9 @@ export function sink(_recv_, ep, hub, tgt, fallback) ::
     if null == pkt :: return // handled by _recv
 
     try ::
+      const op = pkt.op
       if pkt.is_pkt_json ::
-        const op = pkt.op, {msgid, kind} = op
+        const {msgid, kind} = op
         if msgid && null == op.resolve(ep.msg_reviver(pkt)) ::
           return // handled by op.resolve
 
@@ -69,14 +70,14 @@ export function sink(_recv_, ep, hub, tgt, fallback) ::
     let on_tip_pkt = by_msgid.get(key)
     if undefined === on_tip_pkt ::
       // e.g. recv_stream, recv_multipart,
-      const ep_recv = ep[`recv_${kind}`]
+      const ep_recv = ep[`recv_${pkt.pkt_kind}`]
       if undefined !== ep_recv ::
         on_tip_pkt = await ep_recv.call(ep, pkt, op)
 
       if null == on_tip_pkt ::
         on_tip_pkt = noop
-        (tgt.on_warn ? tgt : fallback)
-          .on_warn @ ep, `Unhandled "${kind}" packet`, @{} pkt, op
+        ; (tgt.on_warn ? tgt : fallback)
+          .on_warn @ ep, `Unhandled "${pkt.pkt_kind}" packet`, @{} pkt, op
 
       by_msgid.set(key, on_tip_pkt)
 

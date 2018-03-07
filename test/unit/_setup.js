@@ -12,11 +12,28 @@ chai.use @ chaiAsPromised
 export const assert = chai.assert
 export const expect = chai.expect
 
+export const sleep = ms =>
+  new Promise @ resolve =>
+    setTimeout @ resolve, ms
+
 export function newLog() ::
-  const _log = []
   const log = (...args) =>
-    _log.push @ 1 === args.length
+    log.calls.push @ 1 === args.length
       ? args[0] : args
 
-  log.calls = _log
+  log.calls = []
+  log.expectOneLogOf = expectOneLogOf
+  log.expectLastLogOf = expectLastLogOf
   return log
+
+async function expectOneLogOf(...args) ::
+  await sleep(1)
+  expect(this.calls).to.have.lengthOf(1)
+  expect(this.calls[0]).to.deep.equal(args)
+
+async function expectLastLogOf(...args) ::
+  await sleep(1)
+  const last = this.calls[ this.calls.length - 1 ]
+  expect @ last.slice(0, -1) // trim off body
+  .to.deep.equal(args)
+

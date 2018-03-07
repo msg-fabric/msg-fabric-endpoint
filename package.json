@@ -1,6 +1,6 @@
 {
   "name": "msg-fabric-endpoint",
-  "version": "0.5.14-2",
+  "version": "0.5.14-3",
   "description": "Endpoints for msg-fabric",
   "license": "BSD-2-Clause",
   "author": "Shane Holloway <shane.holloway@ieee.org>",
@@ -55,7 +55,7 @@
     "pretest": "npm -s run build",
     "test": "npm -s run test:one",
     "test:one": "mocha --require babel-core/register test/unittest/node.js",
-    "test:watch": "mocha --watch --require babel-core/register test/unittest/node.js",
+    "test:watch": "mocha --reporter=min --watch --require babel-core/register test/unittest/node.js",
     "test:named": "mocha -r babel-core/register -r test/unittest/node0.js",
     "demo": "babel-node test/manual/pizza_factory.jsy"
   }
