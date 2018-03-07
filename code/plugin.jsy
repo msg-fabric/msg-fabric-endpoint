@@ -66,8 +66,8 @@ export function endpoint_plugin(plugin_options) ::
           @{} id_target, id_route: tgt_router.id_route
           target, hub
 
-        // capture the _recv_ method
-        const _recv_ = ep0._recv_; delete ep0._recv_
+        // capture the _recv_pkt_ method
+        const _recv_pkt_ = ep0._recv_pkt_; delete ep0._recv_pkt_
         const ep = o_assign @ ep0, self.ep_mixin_api
 
         // use target to extended ep; see abstract.jsy for notes
@@ -100,7 +100,7 @@ export function endpoint_plugin(plugin_options) ::
             await self.ep_post_init(tgt, ep, hub)
 
           tgt_router.registerTarget @ id_target,
-            self.ep_sink @ _recv_, ep, hub, tgt, fallback
+            self.ep_sink @ _recv_pkt_, ep, hub, tgt, fallback
 
           if undefined !== self.ep_pre_ready ::
             await self.ep_pre_ready(tgt, ep, hub)
