@@ -31,20 +31,22 @@ ep_proto._add_kind_ @:
       const rpc = await api_endpoint_rpc(api, ep, hub)
       return @{} rpc, on_rpc_msg, on_msg: on_rpc_msg
 
-      function on_rpc_msg({msg, anon}) ::
+      function on_rpc_msg(ep_msg) ::
+        const {msg, anon} = ep_msg
         return rpc.invoke @ anon,
           null == msg ? null : msg.op,
-          api_fn => api_fn(ep, msg.kw, msg.ctx)
+          api_fn => api_fn(msg.kw, msg.ctx, ep_msg)
 
   ep_api_inorder(api) ::
     return this.endpoint @ async function (ep, hub) ::
       const rpc = await api_endpoint_rpc(api, ep, hub)
       return @{} rpc, on_rpc_msg, on_msg: on_rpc_msg
 
-      function on_rpc_msg({msg, anon}) ::
+      function on_rpc_msg(ep_msg) ::
+        const {msg, anon} = ep_msg
         return rpc.invoke_gated @ anon,
           null == msg ? null : msg.op,
-          api_fn => api_fn(ep, msg.kw, msg.ctx)
+          api_fn => api_fn(msg.kw, msg.ctx, ep_msg)
 
 
 async function api_endpoint_rpc(api, ep, hub) ::
@@ -63,8 +65,11 @@ function api_bind_rpc(api, ep, hub) ::
     : 'function' === typeof api
     ? @ op => validate_op(op) ? api(op, ep, hub) : null
     : @ op => ::
-        const fn = validate_op(op) ? api[op] : null
-        return fn ? fn.bind(api) : fn
+        const tip = 'function' === typeof api.op_target
+          ? api.op_target() : api
+
+        const fn = validate_op(op) ? tip[op] : null
+        return fn ? fn.bind(tip) : fn
 
   return o_create @ rpc_api, @{}
     lookup_op: @{} value: lookup_op
