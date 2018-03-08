@@ -6,13 +6,11 @@ export const ep_mixin_api = @{}
   msg_reviver(pkt) ::
     return pkt.json @ msg_target_reviver(this)
   as_target(ep_tgt) ::
-    return o_assign @
-      api_fn => ( api_fn || ident ) @ this.to(ep_tgt), ep_tgt, this
-      ep_tgt
+    const reply = @=> this.to(ep_tgt)
+    return o_assign @ reply, ep_tgt
 
 export default ep_mixin_api
 
-function ident(v) :: return v
 
 export function msg_target_reviver(ep) ::
   let db = new Set()
