@@ -57,7 +57,7 @@ export function sink(_recv_, ep, hub, tgt, fallback) ::
           .on_error @ ep, err, @{} pkt
       finally ::
         if false !== terminate ::
-          pktctx.unregisterTarget(pkt.id_target)
+          pktctx.tgt_router.unregisterTarget(pkt.id_target)
           shutdown(err, {pkt})
 
 
