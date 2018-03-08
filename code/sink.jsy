@@ -22,7 +22,7 @@ export function sink(_recv_, ep, hub, tgt, fallback) ::
   Object.assign @ ep, @{} isAlive, shutdown
   const by_msgid = ep.createStateMap ? ep.createStateMap() : new Map()
 
-  const pkt_msg = @{} __proto__: null
+  const ep_msg_proto = @{} __proto__: null
     get msg() :: return ep.msg_reviver(this.pkt)
     get reply() :: return this.pkt.op.reply()
     get anon() :: return this.pkt.op.anon()
@@ -44,12 +44,10 @@ export function sink(_recv_, ep, hub, tgt, fallback) ::
           return // handled by op.resolve
 
         if pkt.is_multi_pkt ::
-          const msg = @{} pkt, __proto__: pkt_msg
-          return on_msg(msg)
+          return on_msg @: pkt, __proto__: ep_msg_proto
 
         if true === deliver[kind] ::
-          const msg = @{} pkt, __proto__: pkt_msg
-          return on_msg(msg)
+          return on_msg @: pkt, __proto__: ep_msg_proto
 
       return dispatch_msg(pkt, op)
 
@@ -81,10 +79,10 @@ export function sink(_recv_, ep, hub, tgt, fallback) ::
 
       by_msgid.set(key, on_tip_pkt)
 
-    var msg = await on_tip_pkt(pkt, op, ep)
-    if undefined !== msg ::
-      if msgid && null == op.resolve(msg) ::
+    var ep_msg = await on_tip_pkt(pkt, op, ep)
+    if undefined !== ep_msg ::
+      if msgid && null == op.resolve(ep_msg) ::
         return // handled by op.resolve
-      await on_msg(msg)
+      await on_msg(ep_msg)
 
 function noop() ::
