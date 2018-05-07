@@ -33,7 +33,7 @@ describe @ 'endpoint plugin extensions', @=> ::
           log @ `pre _send_pkt_ ${inner_pkt.pkt_kind}`, inner_pkt._hdr_.slice()
 
           const body = hub.data_utils
-            .encode_utf8 @ packBinaryPacket(inner_pkt)
+            .as_data @ packBinaryPacket(inner_pkt)
             .map @ b => b ^ -1 // -- xor "encrypt" transform
 
           const xor_pkt = fromObjBinaryPacket @:

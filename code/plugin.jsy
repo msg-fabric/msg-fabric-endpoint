@@ -8,6 +8,10 @@ const default_plugin_options = @{}
 
   //on_msg({msg, pkt, reply, anon, ep, hub}) ::
   //  console.warn @ 'ENDPOINT MSG:', pkt
+
+  on_ctrl_msg({msg, anon}) ::
+   // ack true if msg is nullish, otherwise false for query not understood
+    anon.ctrl(null == msg)
   on_warn(ep, msg, extra) ::
     console.warn @ 'ENDPOINT WARN:', msg
   on_error(ep, err, extra) ::
@@ -22,6 +26,7 @@ export function endpoint_plugin(plugin_options) ::
 
   const fallback = @{} __proto__: null
     on_msg: plugin_options.on_msg
+    on_ctrl_msg: plugin_options.on_ctrl_msg
     on_warn: plugin_options.on_warn
     on_error: plugin_options.on_error
     on_shutdown: plugin_options.on_shutdown
@@ -35,6 +40,7 @@ export function endpoint_plugin(plugin_options) ::
       ep_create(ep_addr) :: return this.ep_msgs.as(ep_addr)
       ep_msgs: o_create(hub.msgs)
       ep_mixin_api: o_assign({}, ep_mixin_api)
+      ep_fallback: fallback
       ep_sink: sink
       createEndpointPlugin
 
@@ -100,7 +106,7 @@ export function endpoint_plugin(plugin_options) ::
             await self.ep_post_init(tgt, ep, hub)
 
           tgt_router.registerTarget @ id_target,
-            self.ep_sink @ _recv_pkt_, ep, hub, tgt, fallback
+            self.ep_sink @ _recv_pkt_, ep, hub, tgt, self.ep_fallback
 
           if undefined !== self.ep_pre_ready ::
             await self.ep_pre_ready(tgt, ep, hub)
@@ -112,7 +118,7 @@ export function endpoint_plugin(plugin_options) ::
             if tgt.on_ready ::
               await tgt.on_ready(ep, hub)
           catch err ::
-            (tgt.on_error ? tgt : fallback)
+            (tgt.on_error ? tgt : self.ep_fallback)
               .on_error @ ep, err
 
 async function _on_init(target, ep, hub) ::

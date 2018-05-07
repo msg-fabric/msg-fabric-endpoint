@@ -5,10 +5,14 @@ export function sink(_recv_, ep, hub, tgt, fallback) ::
   const on_msg = tgt.on_msg
     ? tgt.on_msg.bind(tgt)
     : 'function' === typeof tgt ? tgt
-    : fallback.on_msg
+    : fallback.on_msg.bind(tgt)
 
   if 'function' !== typeof on_msg ::
     throw new TypeError @ 'Expected target or target.on_msg function'
+
+  const on_ctrl_msg = tgt.on_ctrl_msg
+    ? tgt.on_ctrl_msg.bind(tgt)
+    : fallback.on_ctrl_msg.bind(tgt)
 
   let alive = true
 
@@ -42,6 +46,9 @@ export function sink(_recv_, ep, hub, tgt, fallback) ::
         const {msgid, kind} = op
         if msgid && null == op.resolve(ep.msg_reviver(pkt)) ::
           return // handled by op.resolve
+
+        if 'ctrl' === kind ::
+          return on_ctrl_msg @: pkt, __proto__: ep_msg_proto
 
         if pkt.is_multi_pkt ::
           return on_msg @: pkt, __proto__: ep_msg_proto
