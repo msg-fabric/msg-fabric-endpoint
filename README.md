@@ -1,5 +1,7 @@
 # msg-fabric-endpoint
 
+**DEPRECATED**
+
 Endpoint plugin for [msg-fabric-core][msgfab-core]
 
 [msgfab-core]: https://www.npmjs.com/package/msg-fabric-core
